@@ -196,7 +196,7 @@ Total Amount: ₹${totalAmount}`;
               <div>-</div>
             </div>
             <div className="border-b border-black p-1">
-              <div className="text-neutral-500 uppercase text-[7px]">Buyer's Order No.</div>
+              <div className="text-neutral-500 uppercase text-[7px]">Buyer&apos;s Order No.</div>
               <div>-</div>
             </div>
             <div className="border-b border-r border-black p-1">
@@ -399,7 +399,7 @@ Total Amount: ₹${totalAmount}`;
           </div>
 
           <div className="flex-1 p-1.5 border-r border-black space-y-1">
-            <div className="font-bold">Company's Bank Details:</div>
+            <div className="font-bold">Company&apos;s Bank Details:</div>
             <div className="space-y-0.5 text-[7.5px] leading-tight">
               <div><span className="font-bold">Bank Name: </span>{props.company.bankName || "-"}</div>
               <div><span className="font-bold">A/c No: </span>{props.company.accountNo || "-"}</div>
