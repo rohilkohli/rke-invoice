@@ -17,19 +17,14 @@ export async function scanInvoiceAction(
       .replace(/^data:image\/\w+;base64,/, "")
       .replace(/^data:application\/pdf;base64,/, "");
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const prompt = `
-You are an expert invoice OCR and data extraction system.
-Analyze the provided manual invoice image or document.
-Extract all key details precisely into the requested JSON schema.
-
-CRITICAL INSTRUCTIONS:
-1. Extract the client details (Name, Address, GSTIN, State, and State Code) accurately. State Code must be a 2-character string matching the state (e.g. "06" for Haryana, "07" for Delhi, "29" for Karnataka).
-2. Extract all line items correctly, compiling their serial numbers (sno), detailed description, HSN/SAC code if visible, unit (default to "Nos" if not specified), quantity (qty), and unit rate.
-3. Extract core invoice metadata: Invoice Number, Invoice Date (formatted strictly as YYYY-MM-DD), Purchase Order Number (poNo), reverse charge status (true or false), and shipping consignee details if different.
-4. Return ONLY a valid JSON object matching the requested schema. Do not wrap in markdown or include extra commentary.
-    `.trim();
+    const prompt = `Extract invoice data from this image and return ONLY a valid JSON object matching the schema. Rules:
+- invoiceDate must be YYYY-MM-DD
+- stateCode: 2-digit string (e.g. "09" UP, "07" Delhi, "06" Haryana, "27" Maharashtra, "29" Karnataka)
+- unit defaults to "Nos" if missing
+- reverseCharge is a boolean
+- Do not include markdown, commentary, or extra keys`.trim();
 
     // Define response schema to enforce structural integrity
     const responseSchema = {

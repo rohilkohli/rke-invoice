@@ -67,18 +67,54 @@ export function InvoiceForm(props: {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  /**
+   * Compress & resize an image file to max 1024px on the longer side at JPEG 70%.
+   * Returns a base64 data-URL string. Falls back to the original data URL if canvas fails.
+   */
+  const compressImage = (file: File): Promise<{ dataUrl: string; mimeType: string }> =>
+    new Promise((resolve) => {
+      // PDFs can't be compressed via canvas — pass through unchanged
+      if (file.type === "application/pdf") {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ dataUrl: reader.result as string, mimeType: file.type });
+        reader.readAsDataURL(file);
+        return;
+      }
+      const img = new window.Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAX = 1024;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width >= height) { height = Math.round((height / width) * MAX); width = MAX; }
+          else { width = Math.round((width / height) * MAX); height = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d")?.drawImage(img, 0, 0, width, height);
+        resolve({ dataUrl: canvas.toDataURL("image/jpeg", 0.7), mimeType: "image/jpeg" });
+      };
+      img.onerror = () => {
+        // If image load fails, fall back to raw file
+        const reader = new FileReader();
+        reader.onload = () => resolve({ dataUrl: reader.result as string, mimeType: file.type });
+        reader.readAsDataURL(file);
+      };
+      img.src = url;
+    });
+
   const handleScanInvoice = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setScanning(true);
-    const toastId = toast.loading("Analyzing manual invoice with Gemini AI...");
+    const toastId = toast.loading("Compressing & analysing invoice with Gemini AI...");
 
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64Data = reader.result as string;
-        const result = await scanInvoiceAction(base64Data, file.type);
+      const { dataUrl: base64Data, mimeType: compressedMime } = await compressImage(file);
+      const result = await scanInvoiceAction(base64Data, compressedMime);
         
         if (result.success && result.data) {
           const parsed = result.data;
@@ -126,21 +162,14 @@ export function InvoiceForm(props: {
         } else {
           toast.error(result.error || "Failed to parse the invoice. Please try again.", { id: toastId });
         }
-        setScanning(false);
-      };
-      reader.onerror = () => {
-        toast.error("Failed to read file.", { id: toastId });
-        setScanning(false);
-      };
-      reader.readAsDataURL(file);
     } catch (err) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "Error processing image file.";
       toast.error(msg, { id: toastId });
+    } finally {
       setScanning(false);
+      e.target.value = "";
     }
-
-    e.target.value = "";
   };
 
   const handleShippingToggle = (checked: boolean) => {
