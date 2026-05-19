@@ -12,7 +12,6 @@ Explore the core workflows and aesthetic upgrades of RKE Invoice in action:
 
 ### 1. Modern Login & User Authentication
 A sleek, premium landing interface with smooth animations, custom floating cards, and responsive state transitions.
-* **Seed Credentials**: `agranitinkohli@gmail.com` | `Agra@2009`
 
 <p align="center">
   <img src="public/demo/login_aesthetics.webp" width="85%" alt="Login Aesthetics Demo" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.1);" />
