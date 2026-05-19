@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.github
+out
+build
+.env
+.env.local
+*.log
+*.zip
+*.xlsx
+prisma/dev.db-journal

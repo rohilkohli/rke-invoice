@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+}
+
+enum SignatureType {
+  DRAWN
+  UPLOADED
+  TYPED
+}
+
+model Invoice {
+  id              Int           @id @default(autoincrement())
+  invoiceNo       String        @unique
+  invoiceDate     DateTime
+  poNo            String?
+
+  billPeriodStart DateTime?
+  billPeriodEnd   DateTime?
+
+  state           String
+  stateCode       String
+  transportMode   String?
+  vehicleNo       String?
+  placeOfSupply   String?
+
+  status          InvoiceStatus @default(DRAFT)
+  reverseCharge   Boolean       @default(false)
+
+  cgstRate        Decimal       @default(9)
+  sgstRate        Decimal       @default(9)
+  igstRate        Decimal       @default(18)
+
+  totalBeforeTax  Decimal       @default(0)
+  cgst            Decimal       @default(0)
+  sgst            Decimal       @default(0)
+  igst            Decimal       @default(0)
+  grandTotal      Decimal       @default(0)
+  amountInWords   String?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  pdfName         String?
+  pdfData         String?       // Base64 encoded generated PDF file
+
+  userId          Int?
+  user            User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  clientId        Int
+  client          Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  lineItems       LineItem[]
+  signature       Signature?
+
+  @@index([invoiceDate])
+  @@index([clientId])
+}
+
+model Client {
+  id            Int       @id @default(autoincrement())
+  name          String
+  address       String
+  gstin         String
+  state         String
+  stateCode     String
+  shipToName    String?
+  shipToAddress String?
+
+  invoices      Invoice[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([name])
+  @@index([gstin])
+}
+
+model LineItem {
+  id          Int      @id @default(autoincrement())
+  invoiceId   Int
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  sno         Int
+  description String
+  hsnSac      String?
+
+  unit        String
+  qty         Decimal  @default(0)
+  rate        Decimal  @default(0)
+  amount      Decimal  @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([invoiceId, sno])
+  @@index([invoiceId])
+}
+
+model CompanySettings {
+  id               Int      @id @default(autoincrement())
+  companyName      String
+  gstin            String
+  address          String
+  email            String?
+  phone            String?
+
+  bankName         String?
+  branch           String?
+  accountNo        String?
+  ifsc             String?
+  upiId            String?
+
+  logoUrl          String?
+  signatureUrl     String?
+  invoicePrefix    String?
+
+  defaultCgstRate  Decimal  @default(9)
+  defaultSgstRate  Decimal  @default(9)
+  defaultIgstRate  Decimal  @default(18)
+
+  termsAndConditions String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Signature {
+  id        Int           @id @default(autoincrement())
+  invoiceId Int           @unique
+  invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  dataUrl   String
+  type      SignatureType
+
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  name      String?
+  invoices  Invoice[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
