@@ -17,7 +17,7 @@ export async function scanInvoiceAction(
       .replace(/^data:image\/\w+;base64,/, "")
       .replace(/^data:application\/pdf;base64,/, "");
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
     const prompt = `Extract invoice data from this image and return ONLY a valid JSON object matching the schema. Rules:
 - invoiceDate must be YYYY-MM-DD
