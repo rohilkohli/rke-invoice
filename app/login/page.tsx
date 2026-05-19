@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Lock, Mail, ArrowRight, Sparkles } from "lucide-react";
+import { Lock, Mail, ArrowRight, Sparkles, Eye, EyeOff } from "lucide-react";
 
 import { signIn } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -34,13 +35,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-radial from-neutral-50 to-neutral-100 px-4 dark:from-neutral-900 dark:to-neutral-950">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-neutral-50 via-neutral-100 to-neutral-200 px-4 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <Sparkles className="h-6 w-6" />
           </div>
-          <h1 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 font-sans">
             Welcome back
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
@@ -50,7 +51,7 @@ export default function LoginPage() {
 
         <Card className="border-neutral-200/80 bg-white/70 shadow-xl backdrop-blur-md dark:border-neutral-800/60 dark:bg-neutral-900/70">
           <CardHeader>
-            <CardTitle>Sign In</CardTitle>
+            <CardTitle className="text-xl font-bold">Sign In</CardTitle>
             <CardDescription>Enter your credentials to access your account</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
@@ -58,7 +59,7 @@ export default function LoginPage() {
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email address</Label>
                 <div className="relative">
-                  <Mail className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground/75" />
+                  <Mail className="absolute top-3 left-3 h-4 w-4 text-muted-foreground/75" />
                   <Input
                     id="email"
                     type="email"
@@ -76,16 +77,28 @@ export default function LoginPage() {
                   <Label htmlFor="password">Password</Label>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground/75" />
+                  <Lock className="absolute top-3 left-3 h-4 w-4 text-muted-foreground/75" />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     disabled={isPending}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-muted-foreground/75 hover:text-foreground focus:outline-none"
+                    disabled={isPending}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </div>
             </CardContent>
