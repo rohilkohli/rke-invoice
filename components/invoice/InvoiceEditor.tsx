@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -23,6 +24,7 @@ export function InvoiceEditor(props: {
   initialInvoice: InvoiceFormData;
   company: CompanySettingsPreview;
 }) {
+  const router = useRouter();
   const setInvoice = useInvoiceStore((s) => s.setInvoice);
   const invoice = useInvoiceStore((s) => s.invoice);
   const setSignature = useInvoiceStore((s) => s.setSignature);
@@ -67,9 +69,15 @@ export function InvoiceEditor(props: {
 
         if (invoice.id) {
           await updateInvoice(payload);
-          toast.success("Invoice updated");
+          toast.success("Invoice updated successfully");
         } else {
-          await createInvoice(payload);
+          const res = await createInvoice(payload);
+          if (res && res.success) {
+            toast.success("Invoice created successfully");
+            router.push(`/invoices/${res.id}`);
+          } else {
+            throw new Error("Failed to save invoice");
+          }
         }
       } catch (e) {
         toast.error("Failed to save invoice");

@@ -145,6 +145,9 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
                 setForm((p) => ({ ...p, logoUrl: dataUrl }));
               }}
             />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Recommended: Square PNG with transparent background, 512x512 pixels.
+            </p>
             {form.logoUrl ? (
               <div className="mt-2 h-16 rounded-lg border bg-white p-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

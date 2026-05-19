@@ -178,7 +178,7 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
   });
 
   revalidatePath("/dashboard");
-  redirect(`/invoices/${invoice.id}`);
+  return { success: true, id: invoice.id };
 }
 
 export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {

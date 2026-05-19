@@ -78,6 +78,7 @@ model Client {
   shipToAddress String?
 
   invoices      Invoice[]
+  payments      Payment[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -153,6 +154,25 @@ model User {
   password  String
   name      String?
   invoices  Invoice[]
+  payments  Payment[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
+
+model Payment {
+  id          Int      @id @default(autoincrement())
+  clientId    Int
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime
+  amount      Decimal
+  referenceNo String?  // e.g. UTR / Bank Reference No / Cash
+  description String?  // e.g. Remarks / Details
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([userId])
+}
+
