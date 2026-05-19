@@ -412,9 +412,9 @@ export function InvoiceTableClient(props: {
                             </Button>
                           }
                         />
-                        <DropdownMenuContent align="end">
+                         <DropdownMenuContent align="end">
                           {r.pdfName ? (
-                            <DropdownMenuItem onSelect={() => window.open(`/api/invoices/${r.id}/download`, "_blank")}>
+                            <DropdownMenuItem onClick={() => window.open(`/api/invoices/${r.id}/download`, "_blank")}>
                               <Download className="h-4 w-4 mr-2" />
                               Download Cloud PDF
                             </DropdownMenuItem>
@@ -424,17 +424,17 @@ export function InvoiceTableClient(props: {
                               No Cloud PDF Stored
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem onSelect={() => downloadSinglePdf(r.id)}>
+                          <DropdownMenuItem onClick={() => downloadSinglePdf(r.id)}>
                             <Download className="h-4 w-4 mr-2" />
                             Render & Download PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => downloadSingleXlsx(r.id)}>
+                          <DropdownMenuItem onClick={() => downloadSingleXlsx(r.id)}>
                             <FileSpreadsheet className="h-4 w-4 mr-2" />
                             Download XLSX
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
-                            onSelect={() => removeInvoice(r.id)}
+                            onClick={() => removeInvoice(r.id)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
