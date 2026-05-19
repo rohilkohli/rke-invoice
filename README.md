@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧾 RKE Invoice & Ledger Manager
 
-## Getting Started
+A premium, modern, and highly interactive **GST Tax Invoice Generator & Client Ledger Account Statement** manager. Bootstrapped with Next.js 16 (App Router), Tailwind CSS, SQLite, Prisma, and integrated with Google Gemini VLM OCR for intelligent manual invoice scanning.
 
-First, run the development server:
+Custom-tailored for **RKE (Rental Service of Heavy Engineering Equipments)** to manage client accounts, bank payment credits, and professional GST invoice billing statements.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 📸 Interactive UI Walkthroughs & Demo Recordings
+
+Explore the core workflows and aesthetic upgrades of RKE Invoice in action:
+
+### 1. Modern Login & User Authentication
+A sleek, premium landing interface with smooth animations, custom floating cards, and responsive state transitions.
+* **Seed Credentials**: `agranitinkohli@gmail.com` | `Agra@2009`
+
+<p align="center">
+  <img src="public/demo/login_aesthetics.webp" width="85%" alt="Login Aesthetics Demo" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.1);" />
+</p>
+
+---
+
+### 2. Smart GST Invoice Generator & Print Preview
+Easily generate standard tax invoices with dynamic CGST, SGST, IGST calculations, line-item table editor, local signature caching, and instant pixel-perfect print preview.
+
+<p align="center">
+  <img src="public/demo/invoice_creation.webp" width="85%" alt="Invoice Creation Demo" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.1);" />
+</p>
+
+---
+
+### 3. Client Wise Ledger & Bank Payments
+Record payments received in bank accounts (UTR, UPI, Cash) to update client ledger books. Instantly track Total Billed, Total Received, and Running Outstanding Dues.
+
+<p align="center">
+  <img src="public/demo/ledger_walkthrough.webp" width="85%" alt="Client Ledger Demo" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.1);" />
+</p>
+
+---
+
+### 4. Intelligent AI Invoice Scanner (Gemini VLM OCR)
+Powered by the Google Gemini API. Scan any manual invoice image to automatically parse line items, rates, taxes, and customer details directly into the digital editor in seconds.
+
+<p align="center">
+  <img src="public/demo/ocr_invoice_scan.webp" width="85%" alt="Gemini OCR Scan Demo" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.1);" />
+</p>
+
+---
+
+## ⚡ Core Features
+
+*   🌟 **Stunning Modern Aesthetics**: Curated color palette (emerald/teal gradients), smooth hover states, micro-animations, glassmorphism card templates, and responsive layouts.
+*   📊 **Client Ledger Statement**: Chronological debit (invoice) and credit (bank payment receipt) ledger bookkeeping per client with dynamic running balances.
+*   🤖 **Intelligent OCR Engine**: Google Gemini API scanning engine with high-accuracy parsing of hardware/rental invoices.
+*   🖨️ **Print and Export Utilities**: Instant PDF compiler and export to clean Microsoft Excel spreadsheets (.xlsx).
+*   💳 **UPI QR Code Integration**: Automatically generates an embedded payment QR code based on invoice totals and bank account details.
+*   🔒 **Multi-User Isolation**: Scopes invoices, settings, and payments securely per authenticated user session.
+
+---
+
+## 🛠️ Technology Stack
+
+*   **Frontend & Routing**: Next.js 16 (App Router, Turbopack, React Server Actions)
+*   **Styling**: Tailwind CSS & Lucide Icons
+*   **Database ORM**: Prisma Client & SQLite (`prisma/dev.db`)
+*   **State Management**: Zustand
+*   **UI Components**: Base UI & Custom Tailwind variables
+*   **AI Integration**: Google GenAI SDK (Gemini VLM models)
+
+---
+
+## 🚀 Local Setup & Installation
+
+### 1. Prerequisites
+Make sure you have Node.js (v18+) and npm installed.
+
+### 2. Environment Variables
+Create a `.env` file in the root directory:
+```env
+# Database connection string
+DATABASE_URL="file:./dev.db"
+
+# Google Gemini API Key for OCR Scanning
+GEMINI_API_KEY="your-gemini-api-key"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Install Dependencies
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Database Setup
+Run Prisma push to generate the SQLite database and schema models:
+```bash
+npx prisma db push
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 5. Seed the User Account
+Seed the initial administrator user profile:
+```bash
+npx prisma db seed
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 6. Run the Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) with your browser.
