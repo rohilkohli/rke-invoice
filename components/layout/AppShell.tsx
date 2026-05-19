@@ -12,6 +12,14 @@ import { signOut } from "@/app/actions/auth";
 export async function AppShell(props: { children: React.ReactNode }) {
   const user = await getSessionUser();
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background dark:bg-neutral-950 text-foreground">
+        {props.children}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background dark:bg-neutral-950 text-foreground">
       <div className="flex min-h-screen">
@@ -19,8 +27,15 @@ export async function AppShell(props: { children: React.ReactNode }) {
         <aside className="hidden w-64 border-r bg-sidebar text-sidebar-foreground lg:flex lg:flex-col lg:justify-between h-screen sticky top-0">
           <div className="flex flex-col">
             <div className="flex h-16 items-center justify-between px-4">
-              <Link href="/dashboard" className="font-semibold tracking-tight">
-                RKE Invoice
+              <Link href="/dashboard" className="flex items-center gap-2.5 font-semibold tracking-tight">
+                <img
+                  src="/RKE logo.png"
+                  alt="RKE logo"
+                  className="h-7 w-auto object-contain rounded bg-white p-0.5 border border-neutral-200 dark:border-neutral-800"
+                />
+                <span className="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent dark:from-emerald-400 dark:to-teal-300">
+                  RKE Invoice
+                </span>
               </Link>
               <ThemeToggle />
             </div>
@@ -29,27 +44,25 @@ export async function AppShell(props: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {user && (
-            <div className="border-t p-4 space-y-3 bg-neutral-50/50 dark:bg-neutral-950/20">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Signed in as
-                </p>
-                <p className="text-sm font-bold truncate text-neutral-800 dark:text-neutral-100 mt-0.5">
-                  {user.name || user.email}
-                </p>
-              </div>
-              <form action={signOut}>
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-center gap-2 rounded-lg border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs font-bold text-neutral-700 dark:text-neutral-350 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors shadow-sm cursor-pointer"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  Sign Out
-                </button>
-              </form>
+          <div className="border-t p-4 space-y-3 bg-neutral-50/50 dark:bg-neutral-950/20">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                Signed in as
+              </p>
+              <p className="text-sm font-bold truncate text-neutral-800 dark:text-neutral-100 mt-0.5">
+                {user.name || user.email}
+              </p>
             </div>
-          )}
+            <form action={signOut}>
+              <button
+                type="submit"
+                className="w-full flex items-center justify-center gap-2 rounded-lg border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs font-bold text-neutral-700 dark:text-neutral-350 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors shadow-sm cursor-pointer"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign Out
+              </button>
+            </form>
+          </div>
         </aside>
 
         {/* Mobile Header / Main Shell */}
@@ -73,9 +86,16 @@ export async function AppShell(props: { children: React.ReactNode }) {
                       <div className="flex items-center">
                         <Link
                           href="/dashboard"
-                          className="font-semibold tracking-tight"
+                          className="flex items-center gap-2.5 font-semibold tracking-tight"
                         >
-                          RKE Invoice
+                          <img
+                            src="/RKE logo.png"
+                            alt="RKE logo"
+                            className="h-7 w-auto object-contain rounded bg-white p-0.5 border border-neutral-200 dark:border-neutral-800"
+                          />
+                          <span className="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent dark:from-emerald-400 dark:to-teal-300">
+                            RKE Invoice
+                          </span>
                         </Link>
                       </div>
                     </div>
@@ -84,27 +104,25 @@ export async function AppShell(props: { children: React.ReactNode }) {
                     </div>
                   </div>
 
-                  {user && (
-                    <div className="border-t p-4 space-y-3 bg-neutral-50/50 dark:bg-neutral-950/20">
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Signed in as
-                        </p>
-                        <p className="text-sm font-bold truncate text-neutral-800 dark:text-neutral-100 mt-0.5">
-                          {user.name || user.email}
-                        </p>
-                      </div>
-                      <form action={signOut}>
-                        <button
-                          type="submit"
-                          className="w-full flex items-center justify-center gap-2 rounded-lg border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs font-bold text-neutral-700 dark:text-neutral-350 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors shadow-sm cursor-pointer"
-                        >
-                          <LogOut className="h-3.5 w-3.5" />
-                          Sign Out
-                        </button>
-                      </form>
+                  <div className="border-t p-4 space-y-3 bg-neutral-50/50 dark:bg-neutral-950/20">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Signed in as
+                      </p>
+                      <p className="text-sm font-bold truncate text-neutral-800 dark:text-neutral-100 mt-0.5">
+                        {user.name || user.email}
+                      </p>
                     </div>
-                  )}
+                    <form action={signOut}>
+                      <button
+                        type="submit"
+                        className="w-full flex items-center justify-center gap-2 rounded-lg border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs font-bold text-neutral-700 dark:text-neutral-350 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors shadow-sm cursor-pointer"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                        Sign Out
+                      </button>
+                    </form>
+                  </div>
                 </SheetContent>
               </Sheet>
 

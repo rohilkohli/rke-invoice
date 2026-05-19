@@ -35,11 +35,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-neutral-50 via-neutral-100 to-neutral-200 px-4 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
-      <div className="w-full max-w-md space-y-6">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-neutral-50 via-neutral-100 to-neutral-200 px-4 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 overflow-hidden">
+      {/* Background Decorative Blobs */}
+      <div className="absolute top-[-10%] left-[-10%] h-[35rem] w-[35rem] rounded-full bg-primary/10 blur-[120px] dark:bg-primary/5 pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] h-[35rem] w-[35rem] rounded-full bg-emerald-500/10 blur-[120px] dark:bg-emerald-500/5 pointer-events-none" />
+
+      <div className="relative w-full max-w-md space-y-6 z-10">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            <Sparkles className="h-6 w-6" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white border border-neutral-200 dark:border-neutral-800 shadow-md p-1.5 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/RKE logo.png" alt="RKE Logo" className="h-full w-full object-contain" />
           </div>
           <h1 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 font-sans">
             Welcome back

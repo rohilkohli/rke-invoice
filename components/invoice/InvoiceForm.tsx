@@ -50,6 +50,7 @@ export function InvoiceForm(props: {
   const setInvoice = useInvoiceStore((s) => s.setInvoice);
 
   const [scanning, setScanning] = useState(false);
+  const [scanMode, setScanMode] = useState<"flash" | "pro">("flash");
   const [differentShipping, setDifferentShipping] = useState(() => {
     const c = invoice.client;
     return !!c.shipToName || !!c.shipToAddress;
@@ -68,7 +69,7 @@ export function InvoiceForm(props: {
   }, []);
 
   /**
-   * Compress & resize an image file to max 1024px on the longer side at JPEG 70%.
+   * Compress & resize an image file to max 2048px on the longer side at JPEG 85% to preserve OCR accuracy.
    * Returns a base64 data-URL string. Falls back to the original data URL if canvas fails.
    */
   const compressImage = (file: File): Promise<{ dataUrl: string; mimeType: string }> =>
@@ -84,7 +85,7 @@ export function InvoiceForm(props: {
       const url = URL.createObjectURL(file);
       img.onload = () => {
         URL.revokeObjectURL(url);
-        const MAX = 1024;
+        const MAX = 2048;
         let { width, height } = img;
         if (width > MAX || height > MAX) {
           if (width >= height) { height = Math.round((height / width) * MAX); width = MAX; }
@@ -94,7 +95,7 @@ export function InvoiceForm(props: {
         canvas.width = width;
         canvas.height = height;
         canvas.getContext("2d")?.drawImage(img, 0, 0, width, height);
-        resolve({ dataUrl: canvas.toDataURL("image/jpeg", 0.7), mimeType: "image/jpeg" });
+        resolve({ dataUrl: canvas.toDataURL("image/jpeg", 0.85), mimeType: "image/jpeg" });
       };
       img.onerror = () => {
         // If image load fails, fall back to raw file
@@ -110,11 +111,12 @@ export function InvoiceForm(props: {
     if (!file) return;
 
     setScanning(true);
-    const toastId = toast.loading("Compressing & analysing invoice with Gemini AI...");
+    const modelLabel = scanMode === "pro" ? "Gemini Pro (High Accuracy)" : "Gemini Flash (Fast Mode)";
+    const toastId = toast.loading(`Compressing & scanning invoice with ${modelLabel}...`);
 
     try {
       const { dataUrl: base64Data, mimeType: compressedMime } = await compressImage(file);
-      const result = await scanInvoiceAction(base64Data, compressedMime);
+      const result = await scanInvoiceAction(base64Data, compressedMime, scanMode);
         
         if (result.success && result.data) {
           const parsed = result.data;
@@ -638,7 +640,35 @@ export function InvoiceForm(props: {
             )}
           </div>
 
-          <div className="relative -mt-9">
+          <div className="relative flex flex-col items-center -mt-9">
+            {/* Model Selector above the mobile button */}
+            <div className="absolute -top-11 flex items-center rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 backdrop-blur px-1 py-0.5 shadow-md select-none scale-[0.85] gap-1 z-50">
+              <button
+                type="button"
+                onClick={() => setScanMode("flash")}
+                className={cn(
+                  "px-2 py-0.5 text-[9px] font-bold rounded transition-all duration-150 cursor-pointer",
+                  scanMode === "flash"
+                    ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 shadow-sm"
+                    : "text-muted-foreground"
+                )}
+              >
+                Fast
+              </button>
+              <button
+                type="button"
+                onClick={() => setScanMode("pro")}
+                className={cn(
+                  "px-2 py-0.5 text-[9px] font-bold rounded transition-all duration-150 cursor-pointer",
+                  scanMode === "pro"
+                    ? "bg-gradient-to-tr from-purple-500 to-indigo-500 text-white shadow-sm"
+                    : "text-muted-foreground"
+                )}
+              >
+                Pro
+              </button>
+            </div>
+
             <button
               type="button"
               disabled={scanning}
@@ -706,6 +736,33 @@ export function InvoiceForm(props: {
             id="ai-invoice-scan"
             onChange={handleScanInvoice}
           />
+          {/* Scan Mode Segmented Switch */}
+          <div className="flex items-center rounded-lg border border-neutral-300 dark:border-neutral-700/80 bg-neutral-50/50 dark:bg-neutral-900/50 p-1 select-none text-xs">
+            <button
+              type="button"
+              onClick={() => setScanMode("flash")}
+              className={cn(
+                "px-2.5 py-1 text-[11px] font-bold rounded transition-all duration-150 cursor-pointer",
+                scanMode === "flash"
+                  ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-50 shadow-sm border border-neutral-200/50 dark:border-neutral-700/50"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Fast (Flash)
+            </button>
+            <button
+              type="button"
+              onClick={() => setScanMode("pro")}
+              className={cn(
+                "px-2.5 py-1 text-[11px] font-bold rounded transition-all duration-150 cursor-pointer",
+                scanMode === "pro"
+                  ? "bg-gradient-to-tr from-purple-500 to-indigo-500 text-white shadow-sm border-0"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Pro (Accurate)
+            </button>
+          </div>
           <Button
             type="button"
             variant="outline"

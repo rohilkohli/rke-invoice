@@ -5,6 +5,7 @@ import type { InvoiceFormData } from "@/components/invoice/types";
 export async function scanInvoiceAction(
   base64Data: string,
   mimeType: string,
+  modelType: "flash" | "pro" = "flash"
 ): Promise<{ success: boolean; data?: Partial<InvoiceFormData>; error?: string }> {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -17,7 +18,8 @@ export async function scanInvoiceAction(
       .replace(/^data:image\/\w+;base64,/, "")
       .replace(/^data:application\/pdf;base64,/, "");
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const modelName = modelType === "pro" ? "gemini-2.5-pro" : "gemini-2.5-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
     const prompt = `Extract invoice data from this image and return ONLY a valid JSON object matching the schema. Rules:
 - invoiceDate must be YYYY-MM-DD
@@ -72,6 +74,16 @@ export async function scanInvoiceAction(
       },
       required: ["invoiceNo", "invoiceDate", "state", "stateCode", "reverseCharge", "client", "lineItems"]
     };
+    const generationConfig: any = {
+      responseMimeType: "application/json",
+      responseSchema: responseSchema,
+    };
+
+    if (modelType === "flash") {
+      generationConfig.thinkingConfig = {
+        thinkingBudget: 0
+      };
+    }
 
     const payload = {
       contents: [
@@ -87,10 +99,7 @@ export async function scanInvoiceAction(
           ]
         }
       ],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: responseSchema
-      }
+      generationConfig: generationConfig
     };
 
     const response = await fetch(url, {

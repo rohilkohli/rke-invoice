@@ -146,20 +146,28 @@ Total Amount: ₹${totalAmount}`;
 
         {/* SECTION 2 — SELLER INFO | INVOICE META TABLE */}
         <div className="flex border border-black">
-          <div className="flex-[1.1] p-1.5 border-r border-black space-y-1">
-            <div className="text-[11px] font-bold uppercase">
-              {props.company.companyName || "M/S RADHA KISHAN ENTERPRISES"}
+          <div className="flex-[1.1] p-1.5 border-r border-black flex items-start justify-between gap-2">
+            <div className="space-y-1 flex-1">
+              <div className="text-[11px] font-bold uppercase">
+                {props.company.companyName || "M/S RADHA KISHAN ENTERPRISES"}
+              </div>
+              <div className="text-[9px] text-neutral-700 italic">
+                Rental Service of Heavy Engineering Equipments
+              </div>
+              <div className="text-[8px] leading-tight space-y-0.5">
+                <div>Address: {props.company.address || "-"}</div>
+                <div>GSTIN/UIN: {props.company.gstin || "09ABCFR1989E1ZX"}</div>
+                <div>State/Code: {DEFAULT_COMPANY_STATE.state} (Code: {DEFAULT_COMPANY_STATE.stateCode})</div>
+                {props.company.phone && <div>Phone: {props.company.phone}</div>}
+                {props.company.email && <div>Email: {props.company.email}</div>}
+              </div>
             </div>
-            <div className="text-[9px] text-neutral-700 italic">
-              Rental Service of Heavy Engineering Equipments
-            </div>
-            <div className="text-[8px] leading-tight space-y-0.5">
-              <div>Address: {props.company.address || "-"}</div>
-              <div>GSTIN/UIN: {props.company.gstin || "09ABCFR1989E1ZX"}</div>
-              <div>State/Code: {DEFAULT_COMPANY_STATE.state} (Code: {DEFAULT_COMPANY_STATE.stateCode})</div>
-              {props.company.phone && <div>Phone: {props.company.phone}</div>}
-              {props.company.email && <div>Email: {props.company.email}</div>}
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={props.company.logoUrl || "/RKE logo.png"}
+              alt="Company Logo"
+              className="h-11 w-11 object-contain border border-neutral-200 bg-white p-0.5 shrink-0 mt-0.5"
+            />
           </div>
 
           <div className="flex-1 grid grid-cols-2 text-[8px] leading-tight">

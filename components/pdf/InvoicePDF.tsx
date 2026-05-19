@@ -423,13 +423,23 @@ export function InvoicePDF(props: {
         {/* SECTION 2 — SELLER INFO | INVOICE META TABLE */}
         <View style={styles.section2}>
           <View style={styles.sellerBlock}>
-            <Text style={styles.sellerName}>{props.company.companyName || "M/S RADHA KISHAN ENTERPRISES"}</Text>
-            <Text style={styles.sellerTagline}>Rental Service of Heavy Engineering Equipments</Text>
-            <Text style={styles.sellerDetail}>Address: {props.company.address || "-"}</Text>
-            <Text style={styles.sellerDetail}>GSTIN/UIN: {props.company.gstin || "09ABCFR1989E1ZX"}</Text>
-            <Text style={styles.sellerDetail}>State/Code: {DEFAULT_COMPANY_STATE.state} (Code: {DEFAULT_COMPANY_STATE.stateCode})</Text>
-            {props.company.phone ? <Text style={styles.sellerDetail}>Phone: {props.company.phone}</Text> : null}
-            {props.company.email ? <Text style={styles.sellerDetail}>Email: {props.company.email}</Text> : null}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <View style={{ flex: 1, marginRight: 5 }}>
+                <Text style={styles.sellerName}>{props.company.companyName || "M/S RADHA KISHAN ENTERPRISES"}</Text>
+                <Text style={styles.sellerTagline}>Rental Service of Heavy Engineering Equipments</Text>
+                <Text style={styles.sellerDetail}>Address: {props.company.address || "-"}</Text>
+                <Text style={styles.sellerDetail}>GSTIN/UIN: {props.company.gstin || "09ABCFR1989E1ZX"}</Text>
+                <Text style={styles.sellerDetail}>State/Code: {DEFAULT_COMPANY_STATE.state} (Code: {DEFAULT_COMPANY_STATE.stateCode})</Text>
+                {props.company.phone ? <Text style={styles.sellerDetail}>Phone: {props.company.phone}</Text> : null}
+                {props.company.email ? <Text style={styles.sellerDetail}>Email: {props.company.email}</Text> : null}
+              </View>
+              <View style={{ width: 42, height: 42, borderWidth: 0.5, borderColor: "#ccc", padding: 1, backgroundColor: "#fff", flexShrink: 0, marginTop: 2 }}>
+                <PdfImage
+                  src={props.company.logoUrl || "/RKE logo.png"}
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                />
+              </View>
+            </View>
           </View>
 
           <View style={styles.metaTable}>
