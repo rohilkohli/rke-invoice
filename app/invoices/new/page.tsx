@@ -12,9 +12,9 @@ export default async function NewInvoicePage() {
   }
 
   const [company, client, invoiceNo] = await Promise.all([
-    getOrCreateCompanySettings(),
-    getOrCreateDefaultClient(),
-    getNextInvoiceNo(),
+    getOrCreateCompanySettings(user.id),
+    getOrCreateDefaultClient(user.id),
+    getNextInvoiceNo(user.id),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -78,4 +78,3 @@ export default async function NewInvoicePage() {
     />
   );
 }
-

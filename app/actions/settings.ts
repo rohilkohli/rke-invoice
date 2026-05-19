@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
+import { requireSessionUser } from "@/lib/auth";
 
 const settingsSchema = z.object({
   id: z.number().int(),
@@ -36,13 +37,22 @@ function toDecimal(value: number) {
 }
 
 export async function updateCompanySettings(input: z.infer<typeof settingsSchema>) {
+  const user = await requireSessionUser();
   const parsed = settingsSchema.safeParse(input);
   if (!parsed.success) throw new Error("Invalid settings payload");
 
   const data = parsed.data;
 
+  const existing = await prisma.companySettings.findFirst({
+    where: { id: data.id, userId: user.id },
+    select: { id: true },
+  });
+  if (!existing) {
+    throw new Error("Company settings not found");
+  }
+
   await prisma.companySettings.update({
-    where: { id: data.id },
+    where: { id: existing.id },
     data: {
       companyName: data.companyName,
       gstin: data.gstin,
@@ -68,4 +78,3 @@ export async function updateCompanySettings(input: z.infer<typeof settingsSchema
   revalidatePath("/invoices/new");
   return { ok: true };
 }
-

@@ -9,7 +9,7 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  const company = await getOrCreateCompanySettings();
+  const company = await getOrCreateCompanySettings(user.id);
 
   return (
     <SettingsForm
@@ -36,4 +36,3 @@ export default async function SettingsPage() {
     />
   );
 }
-

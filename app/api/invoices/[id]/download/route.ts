@@ -1,18 +1,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await getSessionUser();
+  if (!user) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
   const { id } = await params;
   const invoiceId = Number(id);
   if (Number.isNaN(invoiceId)) {
     return new NextResponse("Invalid ID", { status: 400 });
   }
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: invoiceId, userId: user.id },
     select: { pdfName: true, pdfData: true },
   });
 

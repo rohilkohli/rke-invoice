@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   }
 
   const [company, invoices] = await Promise.all([
-    getOrCreateCompanySettings(),
+    getOrCreateCompanySettings(user.id),
     prisma.invoice.findMany({
       where: { userId: user.id },
       include: { client: true },

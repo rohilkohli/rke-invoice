@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
-import { getSessionUser } from "@/lib/auth";
+import { requireSessionUser } from "@/lib/auth";
 
 const paymentSchema = z.object({
   clientId: z.number().int(),
@@ -15,10 +15,7 @@ const paymentSchema = z.object({
 });
 
 export async function createPayment(input: z.infer<typeof paymentSchema>) {
-  const user = await getSessionUser();
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
+  const user = await requireSessionUser();
 
   const parsed = paymentSchema.safeParse(input);
   if (!parsed.success) {
@@ -26,6 +23,13 @@ export async function createPayment(input: z.infer<typeof paymentSchema>) {
   }
 
   const { clientId, date, amount, referenceNo, description } = parsed.data;
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, userId: user.id },
+    select: { id: true },
+  });
+  if (!client) {
+    throw new Error("Client not found or access denied");
+  }
 
   const payment = await prisma.payment.create({
     data: {
@@ -43,13 +47,21 @@ export async function createPayment(input: z.infer<typeof paymentSchema>) {
 }
 
 export async function getLedgerData(clientId?: number) {
-  const user = await getSessionUser();
-  if (!user) {
-    throw new Error("Unauthorized");
+  const user = await requireSessionUser();
+
+  if (clientId) {
+    const selectedClient = await prisma.client.findFirst({
+      where: { id: clientId, userId: user.id },
+      select: { id: true },
+    });
+    if (!selectedClient) {
+      throw new Error("Client not found or access denied");
+    }
   }
 
   // Fetch all clients for the selector
   const clients = await prisma.client.findMany({
+    where: { userId: user.id },
     orderBy: { name: "asc" },
   });
 
@@ -76,7 +88,7 @@ export async function getLedgerData(clientId?: number) {
   const totalOutstanding = totalBilled - totalPaid;
 
   // Fetch detail entries scoped to the user
-  let invoiceDetailList = await prisma.invoice.findMany({
+  const invoiceDetailList = await prisma.invoice.findMany({
     where: {
       userId: user.id,
       ...(clientId ? { clientId } : {}),
@@ -85,7 +97,7 @@ export async function getLedgerData(clientId?: number) {
     orderBy: { invoiceDate: "asc" },
   });
 
-  let paymentDetailList = await prisma.payment.findMany({
+  const paymentDetailList = await prisma.payment.findMany({
     where: {
       userId: user.id,
       ...(clientId ? { clientId } : {}),
@@ -167,10 +179,7 @@ export async function getLedgerData(clientId?: number) {
 }
 
 export async function deletePayment(id: number) {
-  const user = await getSessionUser();
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
+  const user = await requireSessionUser();
 
   const payment = await prisma.payment.findUnique({
     where: { id },
