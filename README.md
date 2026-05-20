@@ -1,8 +1,29 @@
 # 🧾 RKE Invoice & Ledger Manager
 
-A premium, modern, and highly interactive **GST Tax Invoice Generator & Client Ledger Account Statement** manager. Bootstrapped with Next.js 16 (App Router), Tailwind CSS, SQLite, Prisma, and integrated with Google Gemini VLM OCR for intelligent manual invoice scanning.
+<p align="center">
+  <img src="public/RKE logo.png" alt="RKE Logo" width="120" style="border-radius: 16px; margin-bottom: 10px;" />
+</p>
 
-Custom-tailored for **RKE (Rental Service of Heavy Engineering Equipments)** to manage client accounts, bank payment credits, and professional GST invoice billing statements.
+<p align="center">
+  <strong>A Premium GST Tax Invoice Generator & Client Ledger Account Statement Manager</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16.2.6-black?style=for-the-badge&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/React-19.2.4-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/Prisma-6.19.3-2D3748?style=for-the-badge&logo=prisma" alt="Prisma" />
+  <img src="https://img.shields.io/badge/SQLite-3-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?style=for-the-badge&logo=tailwind-css" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Google_Gemini-API-blue?style=for-the-badge&logo=google-gemini" alt="Gemini" />
+</p>
+
+---
+
+## 📖 Overview
+
+**RKE Invoice & Ledger Manager** is a premium, modern, and highly interactive business management suite custom-tailored for **RKE (Rental Service of Heavy Engineering Equipments)**. It streamlines client invoicing, ledger tracking, and credit/payment books. 
+
+The application features a gorgeous **glassmorphic dark UI** with smooth micro-animations, an interactive live-updating A4 PDF canvas, and integrated **Google Gemini VLM OCR** scanning to instantly convert scanned/photographed paper invoices into editable digital invoices.
 
 ---
 
@@ -48,39 +69,45 @@ Powered by the Google Gemini API. Scan any manual invoice image to automatically
 
 ## ⚡ Core Features
 
-*   🌟 **Stunning Modern Aesthetics**: Curated color palette (emerald/teal gradients), smooth hover states, micro-animations, glassmorphism card templates, and responsive layouts.
-*   📊 **Client Ledger Statement**: Chronological debit (invoice) and credit (bank payment receipt) ledger bookkeeping per client with dynamic running balances.
-*   🤖 **Intelligent OCR Engine**: Google Gemini API scanning engine with high-accuracy parsing of hardware/rental invoices.
-*   🖨️ **Print and Export Utilities**: Instant PDF compiler and export to clean Microsoft Excel spreadsheets (.xlsx).
-*   💳 **UPI QR Code Integration**: Automatically generates an embedded payment QR code based on invoice totals and bank account details.
-*   🔒 **Multi-User Isolation**: Scopes invoices, settings, and payments securely per authenticated user session.
+*   ✨ **Stunning Premium Aesthetics**: Glassmorphic theme overlays, modern typography (Outfit/Inter), interactive hover triggers, and dynamic color accents (emerald and teal).
+*   📊 **Client Ledger Bookkeeping**: Chronological tracking of debits (issued invoices) and credits (bank payment receipts) with automatically calculated outstanding balances.
+*   🤖 **Gemini AI Scan Mode**: Take a photo of an invoice on mobile or upload a scan on desktop; the Gemini VLM model extracts line items, quantities, rates, and totals.
+*   📄 **Live PDF Canvas Toggle**: Toggle the A4 print preview pane on or off instantly to optimize screen space while editing.
+*   💳 **UPI QR Code Generation**: Automatically embeds a payment QR code directly onto the invoice PDF matching the exact grand total and your UPI details.
+*   💾 **Reliable Offline Signatures**: Renders secure signature overlays directly in A4 previews and printed PDFs using database assets.
+*   🔒 **Multi-Tenant Security**: Protects data access by scoping all clients, invoices, settings, and ledger statements to authenticated user sessions.
 
 ---
 
 ## 🛠️ Technology Stack
 
-*   **Frontend & Routing**: Next.js 16 (App Router, Turbopack, React Server Actions)
-*   **Styling**: Tailwind CSS & Lucide Icons
-*   **Database ORM**: Prisma Client & SQLite (`prisma/dev.db`)
-*   **State Management**: Zustand
-*   **UI Components**: Base UI & Custom Tailwind variables
-*   **AI Integration**: Google GenAI SDK (Gemini VLM models)
+| Component | Technology | Description |
+| :--- | :--- | :--- |
+| **Framework** | **Next.js 16 (App Router)** | Fast SSR, React Server Actions, Turbopack bundling |
+| **UI & Styling** | **Tailwind CSS v4 & Lucide** | Responsive styles, emerald accents, dark theme layout |
+| **Database** | **SQLite & Prisma ORM** | Schema safety, migrations, and SQLite storage |
+| **State** | **Zustand** | client-side configuration states |
+| **PDF Engine** | **@react-pdf/renderer** | Clean client-side/server-side PDF rendering |
+| **AI Integration**| **Google GenAI SDK** | Gemini 2.5 Flash for OCR text and structure parsing |
 
 ---
 
 ## 🚀 Local Setup & Installation
 
 ### 1. Prerequisites
-Make sure you have Node.js (v18+) and npm installed.
+Ensure you have Node.js (v18+) and npm installed locally.
 
-### 2. Environment Variables
+### 2. Configure Environment Variables
 Create a `.env` file in the root directory:
 ```env
-# Database connection string
-DATABASE_URL="file:./dev.db"
+# Path to SQLite database file
+DATABASE_URL="file:./prisma/dev.db"
 
-# Google Gemini API Key for OCR Scanning
-GEMINI_API_KEY="your-gemini-api-key"
+# Google Gemini API Key for OCR scanning features
+GEMINI_API_KEY="AIzaSy..."
+
+# Session signature secret (required in production mode)
+SESSION_SECRET="your-32-byte-secure-random-string"
 ```
 
 ### 3. Install Dependencies
@@ -88,20 +115,30 @@ GEMINI_API_KEY="your-gemini-api-key"
 npm install
 ```
 
-### 4. Database Setup
-Run Prisma push to generate the SQLite database and schema models:
+### 4. Setup Database
+Run Prisma to apply migrations and create the SQLite database:
 ```bash
 npx prisma db push
 ```
 
-### 5. Seed the User Account
-Seed the initial administrator user profile:
+### 5. Seed Admin User Account
+Generate the default administrator profile (`agranitinkohli@gmail.com` / `Agra@2009`):
 ```bash
 npx prisma db seed
 ```
 
-### 6. Run the Development Server
+### 6. Run Development Server
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) with your browser.
+Open [http://localhost:3000](http://localhost:3000) to view the application locally.
+
+---
+
+## ☁️ Production Deployment (Google Cloud Run + GCS)
+
+For deploying this application in production:
+
+1. **Docker Containerization**: Build the image using the provided multi-stage `Dockerfile`.
+2. **Persistent Storage**: Mount a Google Cloud Storage (GCS) bucket at `/app/prisma` using GCS FUSE to persist the SQLite `dev.db` database file between instance scales and cold starts.
+3. **Environment Variables**: Make sure to configure `SESSION_SECRET`, `DATABASE_URL="file:/app/prisma/dev.db"`, and `GEMINI_API_KEY` inside your Cloud Run environment configuration.
