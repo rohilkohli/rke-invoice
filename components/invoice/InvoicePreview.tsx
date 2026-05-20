@@ -13,7 +13,6 @@ import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
 import { UPIQRCode } from "@/components/qr/UPIQRCode";
 
 import { useInvoiceStore } from "./useInvoiceStore";
-import { cn } from "@/lib/utils";
 
 export type CompanySettingsPreview = {
   companyName: string;
@@ -136,8 +135,8 @@ Total Amount: ₹${totalAmount}`;
           <span className="text-sm font-bold uppercase">Tax Invoice (ORIGINAL COPY)</span>
           <div className="flex items-center gap-2">
             <div className="flex flex-col items-center">
-              <div className="h-14 w-14 bg-white border border-black flex items-center justify-center p-0.5 overflow-hidden">
-                <UPIQRCode value={qrPayload} size={52} />
+              <div className="h-20 w-20 bg-white border border-black flex items-center justify-center p-0.5 overflow-hidden">
+                <UPIQRCode value={qrPayload} size={76} />
               </div>
               <span className="text-[7px] font-bold mt-0.5">Scan for Details</span>
             </div>
@@ -166,7 +165,7 @@ Total Amount: ₹${totalAmount}`;
             <img
               src={props.company.logoUrl || "/RKE logo.png"}
               alt="Company Logo"
-              className="h-11 w-11 object-contain border border-neutral-200 bg-white p-0.5 shrink-0 mt-0.5"
+              className="h-16 w-16 object-contain border border-neutral-200 bg-white p-0.5 shrink-0 mt-0.5"
             />
           </div>
 
@@ -290,7 +289,7 @@ Total Amount: ₹${totalAmount}`;
                   key={idx}
                   className="grid grid-cols-[30px_1fr_50px_45px_35px_40px_60px_65px] py-1 text-center items-center min-h-[18px]"
                 >
-                  <div className="text-neutral-500 font-semibold">{idx + 1}</div>
+                  <div className="text-neutral-500 font-semibold">{hasData ? idx + 1 : ""}</div>
                   <div className="text-left pl-1 font-medium truncate">{item.description || ""}</div>
                   <div>{item.hsnSac || ""}</div>
                   <div>{itemGstRate}</div>

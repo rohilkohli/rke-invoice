@@ -149,7 +149,7 @@ export function LedgerClient({ clients, entries, summary, initialClientId }: Led
       if (res.success) {
         toast.success("Payment record deleted");
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to delete payment");
     }
   };

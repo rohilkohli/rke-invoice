@@ -9,8 +9,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PdfActions } from "@/components/pdf/PdfActions";
 import { UPIQRCode } from "@/components/qr/UPIQRCode";
 import { XlsxActions } from "@/components/export/XlsxActions";
-import { buildUpiDeepLink, calculateTotals, getTaxMode } from "@/lib/calculations";
+import { calculateTotals, getTaxMode } from "@/lib/calculations";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 import { InvoiceForm } from "./InvoiceForm";
 import { InvoicePreview, type CompanySettingsPreview } from "./InvoicePreview";
@@ -30,6 +32,7 @@ export function InvoiceEditor(props: {
   const setSignature = useInvoiceStore((s) => s.setSignature);
   const [saving, startTransition] = useTransition();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(true);
 
   useEffect(() => {
     setInvoice(props.initialInvoice);
@@ -122,37 +125,52 @@ Total Amount: ₹${totalAmount}`;
   ]);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_480px]">
+    <div className={`grid gap-6 ${showPreview ? "lg:grid-cols-[1fr_640px]" : "grid-cols-1"}`}>
       <div className="min-w-0">
-        <div className="mb-4 rounded-xl border bg-card p-4">
-          <div className="text-sm font-medium">Exports</div>
-          <div className="mt-3">
-            <div className="flex flex-wrap gap-2">
-              <PdfActions
-                invoice={invoice}
-                company={props.company}
-                qrDataUrl={qrDataUrl}
-              />
-              <XlsxActions invoice={invoice} company={props.company} />
+        <div className="mb-4 rounded-xl border bg-card p-4 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-medium">Exports</div>
+            <div className="mt-3">
+              <div className="flex flex-wrap gap-2">
+                <PdfActions
+                  invoice={invoice}
+                  company={props.company}
+                  qrDataUrl={qrDataUrl}
+                />
+                <XlsxActions invoice={invoice} company={props.company} />
+              </div>
             </div>
+          </div>
+
+          <div className="hidden lg:flex items-center gap-2 border-l pl-4 border-neutral-200 dark:border-neutral-800">
+            <Switch
+              id="show-preview"
+              checked={showPreview}
+              onCheckedChange={setShowPreview}
+            />
+            <Label htmlFor="show-preview" className="text-xs font-semibold cursor-pointer">
+              Live Preview
+            </Label>
           </div>
         </div>
 
         <InvoiceForm onSave={onSave} saving={saving} company={props.company} />
       </div>
 
-      <div className="hidden lg:block">
-        <div className="sticky top-6">
-          <div className="mb-3 text-sm font-medium text-muted-foreground">
-            Live Preview
-          </div>
-          <ScrollArea className="h-[calc(100vh-8rem)] rounded-xl">
-            <div className="p-2">
-              <InvoicePreview company={props.company} />
+      {showPreview && (
+        <div className="hidden lg:block">
+          <div className="sticky top-6">
+            <div className="mb-3 text-sm font-medium text-muted-foreground">
+              Live Preview
             </div>
-          </ScrollArea>
+            <ScrollArea className="h-[calc(100vh-8rem)] rounded-xl">
+              <div className="p-2 pl-8 pr-4">
+                <InvoicePreview company={props.company} />
+              </div>
+            </ScrollArea>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Hidden QR renderer used to embed QR into the generated PDF */}
       {qrPayload ? (

@@ -61,8 +61,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   qrImage: {
-    width: 44,
-    height: 44,
+    width: 72,
+    height: 72,
   },
   qrLabel: {
     fontSize: 5.5,
@@ -433,7 +433,7 @@ export function InvoicePDF(props: {
                 {props.company.phone ? <Text style={styles.sellerDetail}>Phone: {props.company.phone}</Text> : null}
                 {props.company.email ? <Text style={styles.sellerDetail}>Email: {props.company.email}</Text> : null}
               </View>
-              <View style={{ width: 42, height: 42, borderWidth: 0.5, borderColor: "#ccc", padding: 1, backgroundColor: "#fff", flexShrink: 0, marginTop: 2 }}>
+              <View style={{ width: 72, height: 72, borderWidth: 0.5, borderColor: "#ccc", padding: 1, backgroundColor: "#fff", flexShrink: 0, marginTop: 2 }}>
                 <PdfImage
                   src={props.company.logoUrl || "/RKE logo.png"}
                   style={{ width: "100%", height: "100%", objectFit: "contain" }}
@@ -563,7 +563,7 @@ export function InvoicePDF(props: {
 
             return (
               <View key={idx} style={isLast ? styles.tdLast : styles.td}>
-                <Text style={styles.colNo}>{idx + 1}</Text>
+                <Text style={styles.colNo}>{hasData ? idx + 1 : ""}</Text>
                 <Text style={styles.colDesc}>{item.description || ""}</Text>
                 <Text style={styles.colHsn}>{item.hsnSac || ""}</Text>
                 <Text style={styles.colGst}>{itemGstRate}</Text>

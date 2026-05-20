@@ -35,7 +35,6 @@ import {
 import { InvoiceTable } from "./InvoiceTable";
 import { useInvoiceStore } from "./useInvoiceStore";
 import type { InvoiceStatus } from "./types";
-import { SignaturePad } from "@/components/signature/SignaturePad";
 import { cn } from "@/lib/utils";
 import { InvoicePreview, type CompanySettingsPreview } from "./InvoicePreview";
 
@@ -618,8 +617,6 @@ export function InvoiceForm(props: {
                 <InvoicePreview company={props.company} />
               </div>
             </div>
-
-            <SignaturePad />
           </div>
         )}
 
@@ -641,32 +638,17 @@ export function InvoiceForm(props: {
           </div>
 
           <div className="relative flex flex-col items-center -mt-9">
-            {/* Model Selector above the mobile button */}
-            <div className="absolute -top-11 flex items-center rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 backdrop-blur px-1 py-0.5 shadow-md select-none scale-[0.85] gap-1 z-50">
-              <button
-                type="button"
-                onClick={() => setScanMode("flash")}
-                className={cn(
-                  "px-2 py-0.5 text-[9px] font-bold rounded transition-all duration-150 cursor-pointer",
-                  scanMode === "flash"
-                    ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 shadow-sm"
-                    : "text-muted-foreground"
-                )}
-              >
-                Fast
-              </button>
-              <button
-                type="button"
-                onClick={() => setScanMode("pro")}
-                className={cn(
-                  "px-2 py-0.5 text-[9px] font-bold rounded transition-all duration-150 cursor-pointer",
-                  scanMode === "pro"
-                    ? "bg-gradient-to-tr from-purple-500 to-indigo-500 text-white shadow-sm"
-                    : "text-muted-foreground"
-                )}
-              >
-                Pro
-              </button>
+            {/* Model Selector in the middle above the mobile button */}
+            <div className="absolute -top-15 flex items-center rounded-full border border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 backdrop-blur pl-3.5 pr-2 py-1 shadow-md select-none gap-2 z-50">
+              <Label htmlFor="mobile-scan-mode" className="text-xs font-bold text-muted-foreground cursor-pointer">
+                Pro Mode
+              </Label>
+              <Switch
+                id="mobile-scan-mode"
+                checked={scanMode === "pro"}
+                onCheckedChange={(checked) => setScanMode(checked ? "pro" : "flash")}
+                className="cursor-pointer data-[state=checked]:bg-emerald-500"
+              />
             </div>
 
             <button
@@ -674,7 +656,7 @@ export function InvoiceForm(props: {
               disabled={scanning}
               onClick={() => document.getElementById("ai-invoice-scan")?.click()}
               className={cn(
-                "h-14 w-14 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 dark:from-purple-500 dark:to-indigo-500 hover:scale-105 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-purple-500/30 border-4 border-white dark:border-neutral-900 transition-all duration-200",
+                "h-14 w-14 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 dark:from-emerald-400 dark:to-teal-500 hover:scale-105 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20 border-4 border-white dark:border-neutral-900 transition-all duration-200",
                 scanning && "animate-pulse brightness-90 cursor-wait"
               )}
               aria-label="Scan manual invoice with AI camera"
@@ -685,7 +667,7 @@ export function InvoiceForm(props: {
                 <Camera className="h-6 w-6 text-white" />
               )}
             </button>
-            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest whitespace-nowrap">
+            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest whitespace-nowrap">
               AI Scan
             </span>
           </div>
@@ -756,7 +738,7 @@ export function InvoiceForm(props: {
               className={cn(
                 "px-2.5 py-1 text-[11px] font-bold rounded transition-all duration-150 cursor-pointer",
                 scanMode === "pro"
-                  ? "bg-gradient-to-tr from-purple-500 to-indigo-500 text-white shadow-sm border-0"
+                  ? "bg-gradient-to-tr from-emerald-500 to-teal-500 text-white shadow-sm border-0"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -770,7 +752,7 @@ export function InvoiceForm(props: {
             disabled={scanning}
             className="border-neutral-300 dark:border-neutral-700/80 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 active:scale-[0.98] transition-all duration-150 shadow-sm"
           >
-            <Sparkles className={cn("mr-2 h-4 w-4 text-purple-500 dark:text-purple-400 shrink-0", scanning && "animate-pulse")} />
+            <Sparkles className={cn("mr-2 h-4 w-4 text-emerald-500 dark:text-emerald-400 shrink-0", scanning && "animate-pulse")} />
             {scanning ? "Scanning..." : "Scan Manual Invoice (AI)"}
           </Button>
           <Button
@@ -1127,8 +1109,6 @@ export function InvoiceForm(props: {
         </CardContent>
       </Card>
 
-      {/* Signature Section */}
-      <SignaturePad />
     </div>
   );
 }
