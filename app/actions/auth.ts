@@ -1,11 +1,11 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/crypto";
+import { clearSession, setSessionForUser } from "@/lib/auth";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -36,13 +36,7 @@ export async function signUp(formData: z.infer<typeof authSchema>) {
       },
     });
 
-    const cookieStore = await cookies();
-    cookieStore.set("userId", String(user.id), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      path: "/",
-    });
+    await setSessionForUser(user.id);
   } catch (e) {
     console.error("SignUp error:", e);
     return { error: "Failed to create account" };
@@ -65,13 +59,7 @@ export async function signIn(formData: Omit<z.infer<typeof authSchema>, "name">)
       return { error: "Invalid email or password" };
     }
 
-    const cookieStore = await cookies();
-    cookieStore.set("userId", String(user.id), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      path: "/",
-    });
+    await setSessionForUser(user.id);
   } catch (e) {
     console.error("SignIn error:", e);
     return { error: "Failed to sign in" };
@@ -81,7 +69,6 @@ export async function signIn(formData: Omit<z.infer<typeof authSchema>, "name">)
 }
 
 export async function signOut() {
-  const cookieStore = await cookies();
-  cookieStore.delete("userId");
+  await clearSession();
   redirect("/login");
 }

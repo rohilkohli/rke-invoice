@@ -69,6 +69,8 @@ model Invoice {
 
 model Client {
   id            Int       @id @default(autoincrement())
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
   address       String
   gstin         String
@@ -85,6 +87,7 @@ model Client {
 
   @@index([name])
   @@index([gstin])
+  @@index([userId])
 }
 
 model LineItem {
@@ -110,6 +113,8 @@ model LineItem {
 
 model CompanySettings {
   id               Int      @id @default(autoincrement())
+  userId           Int      @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   companyName      String
   gstin            String
   address          String
@@ -149,14 +154,16 @@ model Signature {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
-  password  String
-  name      String?
-  invoices  Invoice[]
-  payments  Payment[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id              Int               @id @default(autoincrement())
+  email           String            @unique
+  password        String
+  name            String?
+  invoices        Invoice[]
+  payments        Payment[]
+  clients         Client[]
+  companySettings CompanySettings[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
 
 model Payment {
@@ -175,4 +182,3 @@ model Payment {
   @@index([clientId])
   @@index([userId])
 }
-

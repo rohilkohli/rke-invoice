@@ -20,9 +20,9 @@ export default async function InvoiceByIdPage(props: {
   if (!Number.isFinite(invoiceId)) notFound();
 
   const [company, invoice] = await Promise.all([
-    getOrCreateCompanySettings(),
-    prisma.invoice.findUnique({
-      where: { id: invoiceId },
+    getOrCreateCompanySettings(user.id),
+    prisma.invoice.findFirst({
+      where: { id: invoiceId, userId: user.id },
       include: {
         client: true,
         lineItems: { orderBy: { sno: "asc" } },
@@ -32,9 +32,6 @@ export default async function InvoiceByIdPage(props: {
   ]);
 
   if (!invoice) notFound();
-  if (invoice.userId && invoice.userId !== user.id) {
-    notFound();
-  }
 
   const initialInvoice: InvoiceFormData = {
     id: invoice.id,
@@ -100,4 +97,3 @@ export default async function InvoiceByIdPage(props: {
     />
   );
 }
-

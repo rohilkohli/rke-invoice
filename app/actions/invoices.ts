@@ -1,13 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
 import { getNextInvoiceNo } from "@/lib/bootstrap";
-import { getSessionUser } from "@/lib/auth";
+import { requireSessionUser } from "@/lib/auth";
 import {
   calculateLineAmount,
   calculateTotals,
@@ -79,7 +78,7 @@ function toDate(value: string | null | undefined) {
 }
 
 export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
-  const user = await getSessionUser();
+  const user = await requireSessionUser();
   const parsed = invoiceSchema.omit({ id: true }).safeParse(input);
   if (!parsed.success) throw new Error("Invalid invoice payload");
 
@@ -98,23 +97,31 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
 
   const invoiceNo = data.invoiceNo.trim()
     ? data.invoiceNo.trim()
-    : await getNextInvoiceNo();
+    : await getNextInvoiceNo(user.id);
 
   const client = data.client.id
-    ? await prisma.client.update({
-        where: { id: data.client.id },
-        data: {
-          name: data.client.name,
-          address: data.client.address,
-          gstin: data.client.gstin,
-          state: data.client.state,
-          stateCode: data.client.stateCode,
-          shipToName: data.client.shipToName ?? null,
-          shipToAddress: data.client.shipToAddress ?? null,
-        },
-      })
+    ? await (async () => {
+        const existing = await prisma.client.findFirst({
+          where: { id: data.client.id, userId: user.id },
+          select: { id: true },
+        });
+        if (!existing) throw new Error("Client not found or access denied");
+        return prisma.client.update({
+          where: { id: existing.id },
+          data: {
+            name: data.client.name,
+            address: data.client.address,
+            gstin: data.client.gstin,
+            state: data.client.state,
+            stateCode: data.client.stateCode,
+            shipToName: data.client.shipToName ?? null,
+            shipToAddress: data.client.shipToAddress ?? null,
+          },
+        });
+      })()
     : await prisma.client.create({
         data: {
+          userId: user.id,
           name: data.client.name,
           address: data.client.address,
           gstin: data.client.gstin,
@@ -127,7 +134,7 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
 
   const invoice = await prisma.invoice.create({
     data: {
-      userId: user?.id ?? null,
+      userId: user.id,
       invoiceNo,
       invoiceDate: new Date(data.invoiceDate),
       poNo: data.poNo ?? null,
@@ -182,11 +189,17 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
 }
 
 export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
+  const user = await requireSessionUser();
   const parsed = invoiceSchema.safeParse(input);
   if (!parsed.success) throw new Error("Invalid invoice payload");
   if (!parsed.data.id) throw new Error("Missing invoice id");
 
   const data = parsed.data;
+  const existingInvoice = await prisma.invoice.findFirst({
+    where: { id: data.id, userId: user.id },
+    select: { id: true },
+  });
+  if (!existingInvoice) throw new Error("Invoice not found or access denied");
 
   const companyStateCode = DEFAULT_COMPANY_STATE.stateCode;
   const taxMode = getTaxMode(companyStateCode, data.client.stateCode);
@@ -200,20 +213,28 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
   const amountInWords = amountInWordsINR(totals.grandTotal);
 
   const client = data.client.id
-    ? await prisma.client.update({
-        where: { id: data.client.id },
-        data: {
-          name: data.client.name,
-          address: data.client.address,
-          gstin: data.client.gstin,
-          state: data.client.state,
-          stateCode: data.client.stateCode,
-          shipToName: data.client.shipToName ?? null,
-          shipToAddress: data.client.shipToAddress ?? null,
-        },
-      })
+    ? await (async () => {
+        const existing = await prisma.client.findFirst({
+          where: { id: data.client.id, userId: user.id },
+          select: { id: true },
+        });
+        if (!existing) throw new Error("Client not found or access denied");
+        return prisma.client.update({
+          where: { id: existing.id },
+          data: {
+            name: data.client.name,
+            address: data.client.address,
+            gstin: data.client.gstin,
+            state: data.client.state,
+            stateCode: data.client.stateCode,
+            shipToName: data.client.shipToName ?? null,
+            shipToAddress: data.client.shipToAddress ?? null,
+          },
+        });
+      })()
     : await prisma.client.create({
         data: {
+          userId: user.id,
           name: data.client.name,
           address: data.client.address,
           gstin: data.client.gstin,
@@ -229,7 +250,7 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
     await tx.signature.deleteMany({ where: { invoiceId: data.id } });
 
     await tx.invoice.update({
-      where: { id: data.id },
+      where: { id: existingInvoice.id },
       data: {
         invoiceNo: data.invoiceNo.trim(),
         invoiceDate: new Date(data.invoiceDate),
@@ -286,14 +307,28 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
 }
 
 export async function deleteInvoice(id: number) {
-  await prisma.invoice.delete({ where: { id } });
+  const user = await requireSessionUser();
+  const existing = await prisma.invoice.findFirst({
+    where: { id, userId: user.id },
+    select: { id: true },
+  });
+  if (!existing) throw new Error("Invoice not found or access denied");
+
+  await prisma.invoice.delete({ where: { id: existing.id } });
   revalidatePath("/dashboard");
   return { ok: true };
 }
 
 export async function saveInvoicePdf(invoiceId: number, filename: string, base64Data: string) {
+  const user = await requireSessionUser();
+  const existing = await prisma.invoice.findFirst({
+    where: { id: invoiceId, userId: user.id },
+    select: { id: true },
+  });
+  if (!existing) throw new Error("Invoice not found or access denied");
+
   await prisma.invoice.update({
-    where: { id: invoiceId },
+    where: { id: existing.id },
     data: {
       pdfName: filename,
       pdfData: base64Data,

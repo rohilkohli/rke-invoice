@@ -473,7 +473,7 @@ export function InvoicePDF(props: {
                 <Text style={styles.metaValue}>-</Text>
               </View>
               <View style={styles.metaCellLast}>
-                <Text style={styles.metaLabel}>Buyer's Order No.</Text>
+                <Text style={styles.metaLabel}>Buyer&apos;s Order No.</Text>
                 <Text style={styles.metaValue}>-</Text>
               </View>
             </View>

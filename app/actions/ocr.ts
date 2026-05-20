@@ -1,6 +1,7 @@
 "use server";
 
 import type { InvoiceFormData } from "@/components/invoice/types";
+import { requireSessionUser } from "@/lib/auth";
 
 export async function scanInvoiceAction(
   base64Data: string,
@@ -8,6 +9,7 @@ export async function scanInvoiceAction(
   modelType: "flash" | "pro" = "flash"
 ): Promise<{ success: boolean; data?: Partial<InvoiceFormData>; error?: string }> {
   try {
+    await requireSessionUser();
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return { success: false, error: "GEMINI_API_KEY environment variable is not configured." };
@@ -74,7 +76,11 @@ export async function scanInvoiceAction(
       },
       required: ["invoiceNo", "invoiceDate", "state", "stateCode", "reverseCharge", "client", "lineItems"]
     };
-    const generationConfig: any = {
+    const generationConfig: {
+      responseMimeType: string;
+      responseSchema: typeof responseSchema;
+      thinkingConfig?: { thinkingBudget: number };
+    } = {
       responseMimeType: "application/json",
       responseSchema: responseSchema,
     };

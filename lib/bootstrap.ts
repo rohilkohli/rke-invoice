@@ -3,12 +3,15 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { DEFAULT_CLIENT, DEFAULT_COMPANY } from "@/lib/defaults";
 
-export async function getOrCreateCompanySettings() {
-  const existing = await prisma.companySettings.findFirst();
+export async function getOrCreateCompanySettings(userId: number) {
+  const existing = await prisma.companySettings.findUnique({
+    where: { userId },
+  });
   if (existing) return existing;
 
   return prisma.companySettings.create({
     data: {
+      userId,
       companyName: DEFAULT_COMPANY.companyName,
       gstin: DEFAULT_COMPANY.gstin,
       address: DEFAULT_COMPANY.address,
@@ -28,21 +31,24 @@ export async function getOrCreateCompanySettings() {
   });
 }
 
-export async function getOrCreateDefaultClient() {
+export async function getOrCreateDefaultClient(userId: number) {
   const existing = await prisma.client.findFirst({
-    where: { gstin: DEFAULT_CLIENT.gstin },
+    where: { userId, gstin: DEFAULT_CLIENT.gstin },
   });
   if (existing) return existing;
 
-  return prisma.client.create({ data: DEFAULT_CLIENT });
+  return prisma.client.create({ data: { ...DEFAULT_CLIENT, userId } });
 }
 
-export async function getNextInvoiceNo(params?: { invoicePrefix?: string }) {
-  const settings = await getOrCreateCompanySettings();
+export async function getNextInvoiceNo(userId: number, params?: { invoicePrefix?: string }) {
+  const settings = await getOrCreateCompanySettings(userId);
   const prefix = (params?.invoicePrefix ?? settings.invoicePrefix ?? "").trim();
 
   const candidates = await prisma.invoice.findMany({
-    where: prefix ? { invoiceNo: { startsWith: prefix } } : undefined,
+    where: {
+      userId,
+      ...(prefix ? { invoiceNo: { startsWith: prefix } } : {}),
+    },
     select: { invoiceNo: true },
     orderBy: { id: "desc" },
     take: 5000,
@@ -60,4 +66,3 @@ export async function getNextInvoiceNo(params?: { invoicePrefix?: string }) {
   const padded = String(next).padStart(3, "0");
   return `${prefix}${padded}`;
 }
-

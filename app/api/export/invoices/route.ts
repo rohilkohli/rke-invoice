@@ -2,8 +2,15 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
 import { getOrCreateCompanySettings } from "@/lib/bootstrap";
+import { getSessionUser } from "@/lib/auth";
+import { hasAllRequestedIdsAuthorized } from "@/lib/authorization";
 
 export async function POST(req: Request) {
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = await req.json().catch(() => null);
   const ids = Array.isArray(body?.ids) ? body.ids : [];
   const invoiceIds = ids
@@ -15,9 +22,9 @@ export async function POST(req: Request) {
   }
 
   const [company, invoices] = await Promise.all([
-    getOrCreateCompanySettings(),
+    getOrCreateCompanySettings(user.id),
     prisma.invoice.findMany({
-      where: { id: { in: invoiceIds } },
+      where: { id: { in: invoiceIds }, userId: user.id },
       include: {
         client: true,
         lineItems: { orderBy: { sno: "asc" } },
@@ -26,6 +33,13 @@ export async function POST(req: Request) {
       orderBy: { id: "asc" },
     }),
   ]);
+
+  if (!hasAllRequestedIdsAuthorized(invoiceIds, invoices.map((invoice) => invoice.id))) {
+    return NextResponse.json(
+      { error: "Some invoices are missing or not authorized" },
+      { status: 403 },
+    );
+  }
 
   return NextResponse.json({
     company: {
@@ -87,4 +101,3 @@ export async function POST(req: Request) {
     })),
   });
 }
-
