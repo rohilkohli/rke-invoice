@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Lock, Mail, User, ArrowRight, Sparkles, Eye, EyeOff } from "lucide-react";
+import { Lock, Mail, User, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 import { signUp } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
