@@ -67,13 +67,8 @@ export function InvoiceForm(props: {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  /**
-   * Compress & resize an image file to max 2048px on the longer side at JPEG 85% to preserve OCR accuracy.
-   * Returns a base64 data-URL string. Falls back to the original data URL if canvas fails.
-   */
   const compressImage = (file: File): Promise<{ dataUrl: string; mimeType: string }> =>
     new Promise((resolve) => {
-      // PDFs can't be compressed via canvas — pass through unchanged
       if (file.type === "application/pdf") {
         const reader = new FileReader();
         reader.onload = () => resolve({ dataUrl: reader.result as string, mimeType: file.type });
@@ -97,7 +92,6 @@ export function InvoiceForm(props: {
         resolve({ dataUrl: canvas.toDataURL("image/jpeg", 0.85), mimeType: "image/jpeg" });
       };
       img.onerror = () => {
-        // If image load fails, fall back to raw file
         const reader = new FileReader();
         reader.onload = () => resolve({ dataUrl: reader.result as string, mimeType: file.type });
         reader.readAsDataURL(file);
@@ -111,15 +105,15 @@ export function InvoiceForm(props: {
 
     setScanning(true);
     const modelLabel = scanMode === "pro" ? "Gemini Pro (High Accuracy)" : "Gemini Flash (Fast Mode)";
-    const toastId = toast.loading(`Compressing & scanning invoice with ${modelLabel}...`);
+    const toastId = toast.loading(`Scanning with ${modelLabel}...`);
 
     try {
       const { dataUrl: base64Data, mimeType: compressedMime } = await compressImage(file);
       const result = await scanInvoiceAction(base64Data, compressedMime, scanMode);
-        
+
         if (result.success && result.data) {
           const parsed = result.data;
-          
+
           const updatedInvoice = {
             ...invoice,
             invoiceNo: parsed.invoiceNo ?? invoice.invoiceNo,
@@ -143,7 +137,7 @@ export function InvoiceForm(props: {
               shipToName: parsed.client?.shipToName ?? parsed.client?.name ?? invoice.client.shipToName,
               shipToAddress: parsed.client?.shipToAddress ?? parsed.client?.address ?? invoice.client.shipToAddress,
             },
-            lineItems: parsed.lineItems && parsed.lineItems.length > 0 
+            lineItems: parsed.lineItems && parsed.lineItems.length > 0
               ? parsed.lineItems.map((li: { sno?: number; description?: string; hsnSac?: string; unit?: string; qty?: number; rate?: number }, idx: number) => ({
                   sno: li.sno ?? (idx + 1),
                   description: li.description ?? "",
@@ -159,9 +153,9 @@ export function InvoiceForm(props: {
           setDifferentShipping(different);
 
           setInvoice(updatedInvoice);
-          toast.success("Invoice details successfully extracted & populated!", { id: toastId });
+          toast.success("Invoice details extracted successfully!", { id: toastId });
         } else {
-          toast.error(result.error || "Failed to parse the invoice. Please try again.", { id: toastId });
+          toast.error(result.error || "Failed to parse invoice. Please try again.", { id: toastId });
         }
     } catch (err) {
       console.error(err);
@@ -181,7 +175,6 @@ export function InvoiceForm(props: {
     }
   };
 
-  // Reactively mirror Billing Details to Shipping Details if "Different Shipping Address" is toggled off
   useEffect(() => {
     if (!differentShipping) {
       if (invoice.client.shipToName !== invoice.client.name) {
@@ -211,9 +204,7 @@ export function InvoiceForm(props: {
 
   const amountInWords = amountInWordsINR(totals.grandTotal);
 
-  // Common Premium Styling Tokens (Pillar 2)
-  const inputClass = "bg-white dark:bg-neutral-900 border-neutral-300 dark:border-neutral-700/60 shadow-sm focus-visible:ring-emerald-500/20 text-neutral-900 dark:text-neutral-50";
-  const cardClass = "bg-white/80 dark:bg-neutral-900/50 backdrop-blur-md border border-neutral-200 dark:border-neutral-800/80 shadow-lg dark:shadow-xl rounded-xl overflow-hidden";
+  const cardClass = "rounded-xl border border-border bg-card shadow-sm overflow-hidden";
 
   if (isMobile) {
     const steps = [
@@ -225,13 +216,12 @@ export function InvoiceForm(props: {
 
     return (
       <div className="space-y-6 pb-24">
-        {/* Header Container */}
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-lg font-semibold tracking-tight">Invoice</div>
-            <div className="text-sm text-muted-foreground">
+            <h1 className="text-lg font-bold tracking-tight">Invoice</h1>
+            <p className="text-sm text-muted-foreground">
               Create or edit GST tax invoice
-            </div>
+            </p>
           </div>
           <input
             type="file"
@@ -242,8 +232,8 @@ export function InvoiceForm(props: {
           />
         </div>
 
-        {/* Step Indicator / Stepper */}
-        <div className="bg-neutral-50/80 dark:bg-neutral-900/40 backdrop-blur-md border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-sm">
+        {/* Step Indicator */}
+        <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
           <div className="flex items-center justify-between max-w-md mx-auto">
             {steps.map((s, idx) => (
               <div key={s.number} className="flex items-center flex-1 last:flex-initial">
@@ -254,21 +244,21 @@ export function InvoiceForm(props: {
                 >
                   <div
                     className={cn(
-                      "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300",
+                      "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200",
                       currentStep === s.number
-                        ? "bg-emerald-500 text-white ring-4 ring-emerald-500/20 shadow-md shadow-emerald-500/10"
+                        ? "bg-primary text-primary-foreground ring-4 ring-primary/20 shadow-sm"
                         : currentStep > s.number
-                        ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400"
-                        : "bg-neutral-100 dark:bg-neutral-850 text-muted-foreground"
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground"
                     )}
                   >
                     {s.number}
                   </div>
                   <span
                     className={cn(
-                      "text-xs font-semibold hidden xs:inline sm:inline transition-all duration-300",
+                      "text-xs font-medium hidden xs:inline sm:inline transition-colors",
                       currentStep === s.number
-                        ? "text-neutral-900 dark:text-neutral-50"
+                        ? "text-foreground"
                         : "text-muted-foreground"
                     )}
                   >
@@ -278,10 +268,10 @@ export function InvoiceForm(props: {
                 {idx < steps.length - 1 && (
                   <div
                     className={cn(
-                      "h-[2px] flex-1 mx-2 rounded transition-all duration-300",
+                      "h-[2px] flex-1 mx-2 rounded transition-colors",
                       currentStep > s.number
-                        ? "bg-emerald-500"
-                        : "bg-neutral-200 dark:bg-neutral-800"
+                        ? "bg-primary"
+                        : "bg-border"
                     )}
                   />
                 )}
@@ -293,10 +283,10 @@ export function InvoiceForm(props: {
         {/* Step 1: Core Details */}
         {currentStep === 1 && (
           <Card className={cardClass}>
-            <CardHeader className="border-b border-neutral-200 dark:border-neutral-800/80 px-5 py-4">
-              <CardTitle className="text-base flex items-center gap-2 text-foreground">
-                <ClipboardList className="h-5 w-5 text-emerald-500 shrink-0" />
-                <span>Invoice Details</span>
+            <CardHeader className="border-b border-border px-5 py-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-primary" />
+                Invoice Details
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-4">
@@ -306,7 +296,6 @@ export function InvoiceForm(props: {
                   value={invoice.invoiceNo}
                   onChange={(e) => setField("invoiceNo", e.target.value)}
                   placeholder="RKE-2026-001"
-                  className={inputClass}
                 />
               </div>
               <div className="space-y-2">
@@ -315,7 +304,6 @@ export function InvoiceForm(props: {
                   type="date"
                   value={invoice.invoiceDate}
                   onChange={(e) => setField("invoiceDate", e.target.value)}
-                  className={inputClass}
                 />
               </div>
               <div className="space-y-2">
@@ -324,7 +312,6 @@ export function InvoiceForm(props: {
                   value={invoice.poNo ?? ""}
                   onChange={(e) => setField("poNo", e.target.value)}
                   placeholder="PO / WO No."
-                  className={inputClass}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -334,7 +321,6 @@ export function InvoiceForm(props: {
                     type="date"
                     value={invoice.billPeriodStart ?? ""}
                     onChange={(e) => setField("billPeriodStart", e.target.value)}
-                    className={inputClass}
                   />
                 </div>
                 <div className="space-y-2">
@@ -343,7 +329,6 @@ export function InvoiceForm(props: {
                     type="date"
                     value={invoice.billPeriodEnd ?? ""}
                     onChange={(e) => setField("billPeriodEnd", e.target.value)}
-                    className={inputClass}
                   />
                 </div>
               </div>
@@ -353,7 +338,7 @@ export function InvoiceForm(props: {
                   value={invoice.status}
                   onValueChange={(v) => setField("status", v as InvoiceStatus)}
                 >
-                  <SelectTrigger className={cn("w-full justify-between pr-2 pl-2.5", inputClass)}>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -370,7 +355,6 @@ export function InvoiceForm(props: {
                     value={invoice.state}
                     onChange={(e) => setField("state", e.target.value)}
                     placeholder="State"
-                    className={inputClass}
                   />
                 </div>
                 <div className="space-y-2">
@@ -379,7 +363,6 @@ export function InvoiceForm(props: {
                     value={invoice.stateCode}
                     onChange={(e) => setField("stateCode", e.target.value)}
                     placeholder="e.g. 27"
-                    className={inputClass}
                   />
                 </div>
               </div>
@@ -390,7 +373,6 @@ export function InvoiceForm(props: {
                     value={invoice.transportMode ?? ""}
                     onChange={(e) => setField("transportMode", e.target.value)}
                     placeholder="Road / Rail"
-                    className={inputClass}
                   />
                 </div>
                 <div className="space-y-2">
@@ -399,7 +381,6 @@ export function InvoiceForm(props: {
                     value={invoice.vehicleNo ?? ""}
                     onChange={(e) => setField("vehicleNo", e.target.value)}
                     placeholder="MH-12-XX-XXXX"
-                    className={inputClass}
                   />
                 </div>
               </div>
@@ -409,13 +390,12 @@ export function InvoiceForm(props: {
                   value={invoice.placeOfSupply ?? ""}
                   onChange={(e) => setField("placeOfSupply", e.target.value)}
                   placeholder="Place of supply"
-                  className={inputClass}
                 />
               </div>
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/20 px-3 py-3">
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-3">
                 <div className="space-y-0.5">
                   <div className="text-sm font-medium">Reverse Charge</div>
-                  <div className="text-[0.7rem] text-muted-foreground font-medium">GST on reverse charge</div>
+                  <div className="text-xs text-muted-foreground">GST on reverse charge</div>
                 </div>
                 <Switch
                   checked={invoice.reverseCharge}
@@ -429,10 +409,10 @@ export function InvoiceForm(props: {
         {/* Step 2: Client Details */}
         {currentStep === 2 && (
           <Card className={cardClass}>
-            <CardHeader className="border-b border-neutral-200 dark:border-neutral-800/80 px-5 py-4">
-              <CardTitle className="text-base flex items-center gap-2 text-foreground">
-                <Building2 className="h-5 w-5 text-emerald-500 shrink-0" />
-                <span>Billed & Shipped Consignee</span>
+            <CardHeader className="border-b border-border px-5 py-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                Billed & Shipped Consignee
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-4">
@@ -442,7 +422,6 @@ export function InvoiceForm(props: {
                   value={invoice.client.name}
                   onChange={(e) => setClientField("name", e.target.value)}
                   placeholder="Client name"
-                  className={inputClass}
                 />
               </div>
               <div className="space-y-2">
@@ -451,7 +430,6 @@ export function InvoiceForm(props: {
                   value={invoice.client.gstin}
                   onChange={(e) => setClientField("gstin", e.target.value)}
                   placeholder="GSTIN"
-                  className={inputClass}
                 />
               </div>
               <div className="space-y-2">
@@ -460,7 +438,7 @@ export function InvoiceForm(props: {
                   value={invoice.client.address}
                   onChange={(e) => setClientField("address", e.target.value)}
                   placeholder="Full address"
-                  className={cn("min-h-20", inputClass)}
+                  className="min-h-20"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -470,7 +448,6 @@ export function InvoiceForm(props: {
                     value={invoice.client.state}
                     onChange={(e) => setClientField("state", e.target.value)}
                     placeholder="State"
-                    className={inputClass}
                   />
                 </div>
                 <div className="space-y-2">
@@ -479,15 +456,14 @@ export function InvoiceForm(props: {
                     value={invoice.client.stateCode}
                     onChange={(e) => setClientField("stateCode", e.target.value)}
                     placeholder="e.g. 27"
-                    className={inputClass}
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/20 px-3 py-3">
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-3">
                 <div className="space-y-1">
                   <div className="text-sm font-medium">Different Shipping Address</div>
-                  <div className="text-xs text-muted-foreground font-medium">Deliver consignee details differ</div>
+                  <div className="text-xs text-muted-foreground">Consignee details differ from billing</div>
                 </div>
                 <Switch
                   checked={differentShipping}
@@ -496,15 +472,14 @@ export function InvoiceForm(props: {
               </div>
 
               {differentShipping && (
-                <div className="space-y-4 border-t border-neutral-200 dark:border-neutral-800/80 pt-4 mt-2">
-                  <div className="text-sm font-semibold text-emerald-500 mb-2">Shipping Information</div>
+                <div className="space-y-4 border-t border-border pt-4 mt-2">
+                  <div className="text-sm font-semibold text-primary mb-2">Shipping Information</div>
                   <div className="space-y-2">
                     <Label>Consignee Name (Ship To)</Label>
                     <Input
                       value={invoice.client.shipToName ?? ""}
                       onChange={(e) => setClientField("shipToName", e.target.value)}
                       placeholder="Ship to name"
-                      className={inputClass}
                     />
                   </div>
                   <div className="space-y-2">
@@ -513,7 +488,6 @@ export function InvoiceForm(props: {
                       value={invoice.client.shipToAddress ?? ""}
                       onChange={(e) => setClientField("shipToAddress", e.target.value)}
                       placeholder="Ship to address"
-                      className={inputClass}
                     />
                   </div>
                 </div>
@@ -528,10 +502,10 @@ export function InvoiceForm(props: {
             <InvoiceTable />
 
             <Card className={cardClass}>
-              <CardHeader className="border-b border-neutral-200 dark:border-neutral-800/80">
-                <CardTitle className="text-base flex items-center gap-2 text-foreground">
-                  <Percent className="h-5 w-5 text-emerald-500 shrink-0" />
-                  <span>Tax & Totals</span>
+              <CardHeader className="border-b border-border px-5 py-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Percent className="h-4 w-4 text-primary" />
+                  Tax & Totals
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-5 space-y-4">
@@ -543,7 +517,6 @@ export function InvoiceForm(props: {
                       value={String(invoice.cgstRate)}
                       onChange={(e) => setField("cgstRate", Number(e.target.value))}
                       disabled={taxMode !== "INTRA_STATE"}
-                      className={inputClass}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -553,7 +526,6 @@ export function InvoiceForm(props: {
                       value={String(invoice.sgstRate)}
                       onChange={(e) => setField("sgstRate", Number(e.target.value))}
                       disabled={taxMode !== "INTRA_STATE"}
-                      className={inputClass}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -563,41 +535,40 @@ export function InvoiceForm(props: {
                       value={String(invoice.igstRate)}
                       onChange={(e) => setField("igstRate", Number(e.target.value))}
                       disabled={taxMode !== "INTER_STATE"}
-                      className={inputClass}
                     />
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/30 p-4 text-sm shadow-inner space-y-2">
+                <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground text-xs">Total Before Tax</span>
-                    <span className="font-semibold tabular-nums text-foreground">{formatINR(totals.totalBeforeTax)}</span>
+                    <span className="font-semibold tabular-nums">{formatINR(totals.totalBeforeTax)}</span>
                   </div>
                   {taxMode === "INTRA_STATE" ? (
                     <>
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground text-xs">CGST @ {invoice.cgstRate}%</span>
-                        <span className="font-medium tabular-nums text-foreground">{formatINR(totals.cgst)}</span>
+                        <span className="font-medium tabular-nums">{formatINR(totals.cgst)}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground text-xs">SGST @ {invoice.sgstRate}%</span>
-                        <span className="font-medium tabular-nums text-foreground">{formatINR(totals.sgst)}</span>
+                        <span className="font-medium tabular-nums">{formatINR(totals.sgst)}</span>
                       </div>
                     </>
                   ) : (
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground text-xs">IGST @ {invoice.igstRate}%</span>
-                      <span className="font-medium tabular-nums text-foreground">{formatINR(totals.igst)}</span>
+                      <span className="font-medium tabular-nums">{formatINR(totals.igst)}</span>
                     </div>
                   )}
-                  <div className="h-px bg-neutral-200 dark:bg-neutral-800/80 my-2" />
+                  <div className="h-px bg-border my-2" />
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-foreground">Grand Total</span>
-                    <span className="font-bold tabular-nums text-emerald-500 text-base">{formatINR(totals.grandTotal)}</span>
+                    <span className="font-bold">Grand Total</span>
+                    <span className="font-bold tabular-nums text-primary text-lg">{formatINR(totals.grandTotal)}</span>
                   </div>
-                  <div className="pt-2 text-xs border-t border-neutral-100 dark:border-neutral-800/40">
-                    <div className="font-bold text-foreground uppercase tracking-wider text-[9px] text-muted-foreground">Amount in words</div>
-                    <div className="mt-0.5 italic leading-tight text-neutral-600 dark:text-neutral-400 font-semibold">{amountInWords}</div>
+                  <div className="pt-2 text-xs border-t border-border">
+                    <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Amount in words</div>
+                    <div className="mt-0.5 italic text-muted-foreground">{amountInWords}</div>
                   </div>
                 </div>
               </CardContent>
@@ -605,23 +576,23 @@ export function InvoiceForm(props: {
           </div>
         )}
 
-        {/* Step 4: Live Review & Sign */}
+        {/* Step 4: Live Review */}
         {currentStep === 4 && (
           <div className="space-y-6">
-            <div className="rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 shadow-md">
-              <div className="bg-neutral-100 dark:bg-neutral-900 px-4 py-2.5 text-xs font-bold text-muted-foreground border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-                <span>Visual Invoice Review</span>
-                <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-[9px] uppercase tracking-wider font-bold">A4 Preview</span>
+            <div className="rounded-xl overflow-hidden border border-border shadow-sm">
+              <div className="bg-muted/50 px-4 py-2.5 text-xs font-medium text-muted-foreground border-b border-border flex items-center justify-between">
+                <span>Invoice Preview</span>
+                <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] uppercase tracking-wider font-semibold">A4</span>
               </div>
-              <div className="p-2 bg-neutral-100/30 dark:bg-neutral-950/10 overflow-x-auto max-w-full">
+              <div className="p-2 bg-muted/20 overflow-x-auto max-w-full">
                 <InvoicePreview company={props.company} />
               </div>
             </div>
           </div>
         )}
 
-        {/* Mobile Sticky Bottom panel */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-lg border-t border-neutral-200 dark:border-neutral-800 px-6 py-4 flex items-center justify-between shadow-[0_-4px_25px_rgba(0,0,0,0.12)] animate-in slide-in-from-bottom duration-300">
+        {/* Mobile Bottom Bar */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border px-6 py-4 flex items-center justify-between shadow-[0_-2px_20px_rgba(0,0,0,0.08)]">
           <div className="w-20">
             {currentStep > 1 && (
               <Button
@@ -629,7 +600,6 @@ export function InvoiceForm(props: {
                 variant="ghost"
                 size="sm"
                 onClick={() => setCurrentStep((s) => Math.max(1, s - 1))}
-                className="text-neutral-700 dark:text-neutral-300 font-bold hover:bg-neutral-100 dark:hover:bg-neutral-800"
               >
                 <ChevronLeft className="mr-1 h-4 w-4" />
                 Back
@@ -638,16 +608,14 @@ export function InvoiceForm(props: {
           </div>
 
           <div className="relative flex flex-col items-center -mt-9">
-            {/* Model Selector in the middle above the mobile button */}
-            <div className="absolute -top-15 flex items-center rounded-full border border-neutral-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 backdrop-blur pl-3.5 pr-2 py-1 shadow-md select-none gap-2 z-50">
-              <Label htmlFor="mobile-scan-mode" className="text-xs font-bold text-muted-foreground cursor-pointer">
-                Pro Mode
+            <div className="absolute -top-15 flex items-center rounded-full border border-border bg-card backdrop-blur pl-3.5 pr-2 py-1 shadow-md select-none gap-2 z-50">
+              <Label htmlFor="mobile-scan-mode" className="text-xs font-medium text-muted-foreground cursor-pointer">
+                Pro
               </Label>
               <Switch
                 id="mobile-scan-mode"
                 checked={scanMode === "pro"}
                 onCheckedChange={(checked) => setScanMode(checked ? "pro" : "flash")}
-                className="cursor-pointer data-[state=checked]:bg-emerald-500"
               />
             </div>
 
@@ -656,18 +624,18 @@ export function InvoiceForm(props: {
               disabled={scanning}
               onClick={() => document.getElementById("ai-invoice-scan")?.click()}
               className={cn(
-                "h-14 w-14 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 dark:from-emerald-400 dark:to-teal-500 hover:scale-105 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20 border-4 border-white dark:border-neutral-900 transition-all duration-200",
-                scanning && "animate-pulse brightness-90 cursor-wait"
+                "h-14 w-14 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/25 border-4 border-background transition-all duration-200 active:scale-95",
+                scanning && "animate-pulse opacity-80 cursor-wait"
               )}
-              aria-label="Scan manual invoice with AI camera"
+              aria-label="Scan invoice with AI"
             >
               {scanning ? (
-                <Sparkles className="h-6 w-6 animate-spin text-white" />
+                <Sparkles className="h-6 w-6 animate-spin" />
               ) : (
-                <Camera className="h-6 w-6 text-white" />
+                <Camera className="h-6 w-6" />
               )}
             </button>
-            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest whitespace-nowrap">
+            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-primary uppercase tracking-widest whitespace-nowrap">
               AI Scan
             </span>
           </div>
@@ -678,7 +646,6 @@ export function InvoiceForm(props: {
                 type="button"
                 size="sm"
                 onClick={() => setCurrentStep((s) => Math.min(4, s + 1))}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-md shadow-emerald-500/10"
               >
                 Next
                 <ChevronRight className="ml-1 h-4 w-4" />
@@ -689,9 +656,8 @@ export function InvoiceForm(props: {
                 size="sm"
                 onClick={props.onSave}
                 disabled={props.saving}
-                className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold shadow-lg shadow-emerald-500/20"
               >
-                {props.saving ? "Saving..." : "Save"}
+                {props.saving ? "..." : "Save"}
               </Button>
             )}
           </div>
@@ -702,13 +668,15 @@ export function InvoiceForm(props: {
 
   return (
     <div className="space-y-6">
-      {/* Header Container */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-lg font-semibold tracking-tight">Invoice</div>
-          <div className="text-sm text-muted-foreground">
-            Create or edit GST tax invoice
-          </div>
+          <h1 className="text-xl font-bold tracking-tight">
+            {invoice.id ? "Edit Invoice" : "New Invoice"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {invoice.invoiceNo || "GST tax invoice"}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <input
@@ -718,31 +686,31 @@ export function InvoiceForm(props: {
             id="ai-invoice-scan"
             onChange={handleScanInvoice}
           />
-          {/* Scan Mode Segmented Switch */}
-          <div className="flex items-center rounded-lg border border-neutral-300 dark:border-neutral-700/80 bg-neutral-50/50 dark:bg-neutral-900/50 p-1 select-none text-xs">
+          {/* Scan Mode Toggle */}
+          <div className="flex items-center rounded-lg border border-border bg-muted/50 p-0.5 select-none text-xs">
             <button
               type="button"
               onClick={() => setScanMode("flash")}
               className={cn(
-                "px-2.5 py-1 text-[11px] font-bold rounded transition-all duration-150 cursor-pointer",
+                "px-2.5 py-1.5 text-[11px] font-medium rounded-md transition-all duration-150 cursor-pointer",
                 scanMode === "flash"
-                  ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-50 shadow-sm border border-neutral-200/50 dark:border-neutral-700/50"
+                  ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              Fast (Flash)
+              Flash
             </button>
             <button
               type="button"
               onClick={() => setScanMode("pro")}
               className={cn(
-                "px-2.5 py-1 text-[11px] font-bold rounded transition-all duration-150 cursor-pointer",
+                "px-2.5 py-1.5 text-[11px] font-medium rounded-md transition-all duration-150 cursor-pointer",
                 scanMode === "pro"
-                  ? "bg-gradient-to-tr from-emerald-500 to-teal-500 text-white shadow-sm border-0"
+                  ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              Pro (Accurate)
+              Pro
             </button>
           </div>
           <Button
@@ -750,35 +718,30 @@ export function InvoiceForm(props: {
             variant="outline"
             onClick={() => document.getElementById("ai-invoice-scan")?.click()}
             disabled={scanning}
-            className="border-neutral-300 dark:border-neutral-700/80 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 active:scale-[0.98] transition-all duration-150 shadow-sm"
           >
-            <Sparkles className={cn("mr-2 h-4 w-4 text-emerald-500 dark:text-emerald-400 shrink-0", scanning && "animate-pulse")} />
-            {scanning ? "Scanning..." : "Scan Manual Invoice (AI)"}
+            <Sparkles className={cn("mr-2 h-4 w-4 text-primary", scanning && "animate-pulse")} />
+            {scanning ? "Scanning..." : "AI Scan"}
           </Button>
           <Button
             onClick={props.onSave}
             disabled={props.saving}
-            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-[0_4px_20px_rgba(16,185,129,0.15)] active:scale-[0.98] transition-all duration-150 border-0"
+            className="shadow-md shadow-primary/20"
           >
             <Save className="mr-2 h-4 w-4" />
-            {props.saving ? "Saving..." : "Save"}
+            {props.saving ? "Saving..." : "Save Invoice"}
           </Button>
         </div>
       </div>
 
-      {/* Accordion Panels (Pillar 1) */}
+      {/* Accordion Panels */}
       <Accordion
         defaultValue={["core-meta", "consignee"]}
         className="space-y-4"
       >
-        {/* Panel 1: Core Meta */}
-        <AccordionItem
-          value="core-meta"
-          className={cardClass}
-        >
-          <AccordionTrigger className="px-5 py-4 font-semibold text-base flex items-center gap-2 border-b border-neutral-200 dark:border-neutral-800/80 hover:no-underline text-foreground">
-            <ClipboardList className="h-5 w-5 text-emerald-500 shrink-0" />
-            <span>Core Meta</span>
+        <AccordionItem value="core-meta" className={cardClass}>
+          <AccordionTrigger className="px-5 py-4 font-semibold text-sm flex items-center gap-2 border-b border-border hover:no-underline">
+            <ClipboardList className="h-4 w-4 text-primary" />
+            Core Details
           </AccordionTrigger>
           <AccordionContent className="p-5 grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
@@ -787,7 +750,6 @@ export function InvoiceForm(props: {
                 value={invoice.invoiceNo}
                 onChange={(e) => setField("invoiceNo", e.target.value)}
                 placeholder="RKE-2026-001"
-                className={inputClass}
               />
             </div>
             <div className="space-y-2">
@@ -796,7 +758,6 @@ export function InvoiceForm(props: {
                 type="date"
                 value={invoice.invoiceDate}
                 onChange={(e) => setField("invoiceDate", e.target.value)}
-                className={inputClass}
               />
             </div>
             <div className="space-y-2">
@@ -805,17 +766,14 @@ export function InvoiceForm(props: {
                 value={invoice.poNo ?? ""}
                 onChange={(e) => setField("poNo", e.target.value)}
                 placeholder="PO / WO No."
-                className={inputClass}
               />
             </div>
-
             <div className="space-y-2">
               <Label>Bill Period Start</Label>
               <Input
                 type="date"
                 value={invoice.billPeriodStart ?? ""}
                 onChange={(e) => setField("billPeriodStart", e.target.value)}
-                className={inputClass}
               />
             </div>
             <div className="space-y-2">
@@ -824,7 +782,6 @@ export function InvoiceForm(props: {
                 type="date"
                 value={invoice.billPeriodEnd ?? ""}
                 onChange={(e) => setField("billPeriodEnd", e.target.value)}
-                className={inputClass}
               />
             </div>
             <div className="space-y-2">
@@ -833,7 +790,7 @@ export function InvoiceForm(props: {
                 value={invoice.status}
                 onValueChange={(v) => setField("status", v as InvoiceStatus)}
               >
-                <SelectTrigger className={cn("w-full justify-between pr-2 pl-2.5", inputClass)}>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -843,14 +800,12 @@ export function InvoiceForm(props: {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <Label>State of Supply</Label>
               <Input
                 value={invoice.state}
                 onChange={(e) => setField("state", e.target.value)}
                 placeholder="State"
-                className={inputClass}
               />
             </div>
             <div className="space-y-2">
@@ -859,13 +814,12 @@ export function InvoiceForm(props: {
                 value={invoice.stateCode}
                 onChange={(e) => setField("stateCode", e.target.value)}
                 placeholder="e.g. 27"
-                className={inputClass}
               />
             </div>
-            <div className="flex items-end justify-between gap-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/20 px-3 py-1.5 h-16">
+            <div className="flex items-end justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-1.5 h-16">
               <div className="space-y-0.5">
                 <div className="text-sm font-medium">Reverse Charge</div>
-                <div className="text-[0.7rem] text-muted-foreground">GST on reverse charge</div>
+                <div className="text-[11px] text-muted-foreground">GST on reverse charge</div>
               </div>
               <Switch
                 checked={invoice.reverseCharge}
@@ -875,14 +829,10 @@ export function InvoiceForm(props: {
           </AccordionContent>
         </AccordionItem>
 
-        {/* Panel 2: Billed & Shipped Consignee */}
-        <AccordionItem
-          value="consignee"
-          className={cardClass}
-        >
-          <AccordionTrigger className="px-5 py-4 font-semibold text-base flex items-center gap-2 border-b border-neutral-200 dark:border-neutral-800/80 hover:no-underline text-foreground">
-            <Building2 className="h-5 w-5 text-emerald-500 shrink-0" />
-            <span>Billed & Shipped Consignee</span>
+        <AccordionItem value="consignee" className={cardClass}>
+          <AccordionTrigger className="px-5 py-4 font-semibold text-sm flex items-center gap-2 border-b border-border hover:no-underline">
+            <Building2 className="h-4 w-4 text-primary" />
+            Billed & Shipped Consignee
           </AccordionTrigger>
           <AccordionContent className="p-5 grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -891,7 +841,6 @@ export function InvoiceForm(props: {
                 value={invoice.client.name}
                 onChange={(e) => setClientField("name", e.target.value)}
                 placeholder="Client name"
-                className={inputClass}
               />
             </div>
             <div className="space-y-2">
@@ -900,7 +849,6 @@ export function InvoiceForm(props: {
                 value={invoice.client.gstin}
                 onChange={(e) => setClientField("gstin", e.target.value)}
                 placeholder="GSTIN"
-                className={inputClass}
               />
             </div>
             <div className="space-y-2 md:col-span-2">
@@ -909,7 +857,7 @@ export function InvoiceForm(props: {
                 value={invoice.client.address}
                 onChange={(e) => setClientField("address", e.target.value)}
                 placeholder="Full address"
-                className={cn("min-h-20", inputClass)}
+                className="min-h-20"
               />
             </div>
             <div className="space-y-2">
@@ -918,7 +866,6 @@ export function InvoiceForm(props: {
                 value={invoice.client.state}
                 onChange={(e) => setClientField("state", e.target.value)}
                 placeholder="State"
-                className={inputClass}
               />
             </div>
             <div className="space-y-2">
@@ -927,15 +874,13 @@ export function InvoiceForm(props: {
                 value={invoice.client.stateCode}
                 onChange={(e) => setClientField("stateCode", e.target.value)}
                 placeholder="e.g. 27"
-                className={inputClass}
               />
             </div>
 
-            {/* Pillar 1: Different Shipping Address switch */}
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/20 px-3 py-3 md:col-span-2">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-3 md:col-span-2">
               <div className="space-y-1">
                 <div className="text-sm font-medium">Different Shipping Address</div>
-                <div className="text-xs text-muted-foreground">Deliver consignee details differ from billing address</div>
+                <div className="text-xs text-muted-foreground">Consignee differs from billing</div>
               </div>
               <Switch
                 checked={differentShipping}
@@ -943,11 +888,10 @@ export function InvoiceForm(props: {
               />
             </div>
 
-            {/* Conditionally Rendered Shipping Details */}
             {differentShipping && (
               <>
-                <div className="space-y-2 md:col-span-2 border-t border-neutral-200 dark:border-neutral-800/80 pt-4 mt-2">
-                  <div className="text-sm font-semibold text-emerald-500 mb-2">Shipping Information</div>
+                <div className="space-y-2 md:col-span-2 border-t border-border pt-4 mt-2">
+                  <div className="text-sm font-semibold text-primary mb-2">Shipping Information</div>
                 </div>
                 <div className="space-y-2">
                   <Label>Consignee Name (Ship To)</Label>
@@ -955,7 +899,6 @@ export function InvoiceForm(props: {
                     value={invoice.client.shipToName ?? ""}
                     onChange={(e) => setClientField("shipToName", e.target.value)}
                     placeholder="Ship to name"
-                    className={inputClass}
                   />
                 </div>
                 <div className="space-y-2">
@@ -964,7 +907,6 @@ export function InvoiceForm(props: {
                     value={invoice.client.shipToAddress ?? ""}
                     onChange={(e) => setClientField("shipToAddress", e.target.value)}
                     placeholder="Ship to address"
-                    className={inputClass}
                   />
                 </div>
               </>
@@ -972,14 +914,10 @@ export function InvoiceForm(props: {
           </AccordionContent>
         </AccordionItem>
 
-        {/* Panel 3: Logistics & Transport */}
-        <AccordionItem
-          value="logistics"
-          className={cardClass}
-        >
-          <AccordionTrigger className="px-5 py-4 font-semibold text-base flex items-center gap-2 border-b border-neutral-200 dark:border-neutral-800/80 hover:no-underline text-foreground">
-            <Truck className="h-5 w-5 text-emerald-500 shrink-0" />
-            <span>Logistics & Transport</span>
+        <AccordionItem value="logistics" className={cardClass}>
+          <AccordionTrigger className="px-5 py-4 font-semibold text-sm flex items-center gap-2 border-b border-border hover:no-underline">
+            <Truck className="h-4 w-4 text-primary" />
+            Logistics & Transport
           </AccordionTrigger>
           <AccordionContent className="p-5 grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
@@ -988,7 +926,6 @@ export function InvoiceForm(props: {
                 value={invoice.transportMode ?? ""}
                 onChange={(e) => setField("transportMode", e.target.value)}
                 placeholder="Road / Rail / Air"
-                className={inputClass}
               />
             </div>
             <div className="space-y-2">
@@ -997,7 +934,6 @@ export function InvoiceForm(props: {
                 value={invoice.vehicleNo ?? ""}
                 onChange={(e) => setField("vehicleNo", e.target.value)}
                 placeholder="Vehicle number"
-                className={inputClass}
               />
             </div>
             <div className="space-y-2">
@@ -1006,22 +942,21 @@ export function InvoiceForm(props: {
                 value={invoice.placeOfSupply ?? ""}
                 onChange={(e) => setField("placeOfSupply", e.target.value)}
                 placeholder="Place of supply"
-                className={inputClass}
               />
             </div>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
 
-      {/* Invoice Table Section */}
+      {/* Line Items */}
       <InvoiceTable />
 
-      {/* Tax & Totals Section */}
+      {/* Tax & Totals */}
       <Card className={cardClass}>
-        <CardHeader className="border-b border-neutral-200 dark:border-neutral-800/80">
-          <CardTitle className="text-base flex items-center gap-2 text-foreground">
-            <Percent className="h-5 w-5 text-emerald-500" />
-            <span>Tax & Totals</span>
+        <CardHeader className="border-b border-border px-5 py-4">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Percent className="h-4 w-4 text-primary" />
+            Tax & Totals
           </CardTitle>
         </CardHeader>
         <CardContent className="p-5 grid gap-4 md:grid-cols-2">
@@ -1033,7 +968,6 @@ export function InvoiceForm(props: {
                 value={String(invoice.cgstRate)}
                 onChange={(e) => setField("cgstRate", Number(e.target.value))}
                 disabled={taxMode !== "INTRA_STATE"}
-                className={inputClass}
               />
             </div>
             <div className="space-y-2">
@@ -1043,7 +977,6 @@ export function InvoiceForm(props: {
                 value={String(invoice.sgstRate)}
                 onChange={(e) => setField("sgstRate", Number(e.target.value))}
                 disabled={taxMode !== "INTRA_STATE"}
-                className={inputClass}
               />
             </div>
             <div className="space-y-2">
@@ -1053,62 +986,46 @@ export function InvoiceForm(props: {
                 value={String(invoice.igstRate)}
                 onChange={(e) => setField("igstRate", Number(e.target.value))}
                 disabled={taxMode !== "INTER_STATE"}
-                className={inputClass}
               />
             </div>
           </div>
 
-          <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/30 p-4 text-sm shadow-inner">
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Total Before Tax</span>
-              <span className="font-medium tabular-nums text-foreground">
-                {formatINR(totals.totalBeforeTax)}
-              </span>
+              <span className="font-medium tabular-nums">{formatINR(totals.totalBeforeTax)}</span>
             </div>
             {taxMode === "INTRA_STATE" ? (
               <>
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-muted-foreground">
-                    CGST @ {invoice.cgstRate}%
-                  </span>
-                  <span className="font-medium tabular-nums text-foreground">
-                    {formatINR(totals.cgst)}
-                  </span>
+                  <span className="text-muted-foreground">CGST @ {invoice.cgstRate}%</span>
+                  <span className="font-medium tabular-nums">{formatINR(totals.cgst)}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-muted-foreground">
-                    SGST @ {invoice.sgstRate}%
-                  </span>
-                  <span className="font-medium tabular-nums text-foreground">
-                    {formatINR(totals.sgst)}
-                  </span>
+                  <span className="text-muted-foreground">SGST @ {invoice.sgstRate}%</span>
+                  <span className="font-medium tabular-nums">{formatINR(totals.sgst)}</span>
                 </div>
               </>
             ) : (
               <div className="mt-2 flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  IGST @ {invoice.igstRate}%
-                </span>
-                <span className="font-medium tabular-nums text-foreground">
-                  {formatINR(totals.igst)}
-                </span>
+                <span className="text-muted-foreground">IGST @ {invoice.igstRate}%</span>
+                <span className="font-medium tabular-nums">{formatINR(totals.igst)}</span>
               </div>
             )}
-            <div className="my-3 h-px bg-neutral-200 dark:bg-neutral-800/80" />
+            <div className="my-3 h-px bg-border" />
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-foreground">Grand Total</span>
-              <span className="font-semibold tabular-nums text-emerald-400 text-base">
+              <span className="font-bold">Grand Total</span>
+              <span className="font-bold tabular-nums text-primary text-lg">
                 {formatINR(totals.grandTotal)}
               </span>
             </div>
-            <div className="mt-3 text-xs text-muted-foreground">
+            <div className="mt-3 text-xs text-muted-foreground border-t border-border pt-2">
               <div className="font-medium text-foreground">Amount in words</div>
-              <div className="mt-1 italic">{amountInWords}</div>
+              <div className="mt-0.5 italic">{amountInWords}</div>
             </div>
           </div>
         </CardContent>
       </Card>
-
     </div>
   );
 }

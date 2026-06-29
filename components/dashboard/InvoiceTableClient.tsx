@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import JSZip from "jszip";
 import { pdf } from "@react-pdf/renderer";
 import * as XLSX from "xlsx";
-import { Download, FileSpreadsheet, MoreHorizontal, Package, Trash2 } from "lucide-react";
+import { Download, FileSpreadsheet, MoreHorizontal, Package, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -71,6 +71,20 @@ function formatINR(amount: number) {
     currency: "INR",
     maximumFractionDigits: 2,
   }).format(Number.isFinite(amount) ? amount : 0);
+}
+
+function StatusBadge({ status }: { status: InvoiceStatus }) {
+  const config = {
+    DRAFT: { label: "Draft", className: "bg-muted text-muted-foreground" },
+    SENT: { label: "Sent", className: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400" },
+    PAID: { label: "Paid", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400" },
+  }[status] || { label: status, className: "bg-muted text-muted-foreground" };
+
+  return (
+    <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium", config.className)}>
+      {config.label}
+    </span>
+  );
 }
 
 export function InvoiceTableClient(props: {
@@ -273,52 +287,18 @@ export function InvoiceTableClient(props: {
 
   return (
     <div className="space-y-4">
+      {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-muted-foreground">
-          {selectedIds.length ? (
-            <span className="font-medium text-foreground">
-              {selectedIds.length} selected
-            </span>
-          ) : (
-            "Select invoices for bulk export"
-          )}
-          {progress ? (
-            <span className="ml-2">
-              ({progress.done}/{progress.total})
-            </span>
-          ) : null}
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={downloadZipPdfs}
-            disabled={!selectedIds.length || busy !== null}
-          >
-            <Package className="mr-2 h-4 w-4" />
-            ZIP PDFs
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={downloadMergedXlsx}
-            disabled={!selectedIds.length || busy !== null}
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Merged XLSX
-          </Button>
-        </div>
-      </div>
-
-      <div className="rounded-lg border">
-        <div className="flex flex-wrap items-center gap-2 border-b p-3">
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search invoice or client..."
-            className="h-8 w-64"
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search invoices..."
+              className="h-9 w-64 pl-9"
+            />
+          </div>
           <Select
             value={status}
             onValueChange={(v) => {
@@ -329,7 +309,7 @@ export function InvoiceTableClient(props: {
               setStatus(next);
             }}
           >
-            <SelectTrigger className="h-8 w-40">
+            <SelectTrigger className="h-9 w-36">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -340,25 +320,57 @@ export function InvoiceTableClient(props: {
             </SelectContent>
           </Select>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>From</span>
             <Input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="h-8 w-40"
+              className="h-9 w-36"
             />
-            <span>To</span>
+            <span className="text-xs">to</span>
             <Input
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="h-8 w-40"
+              className="h-9 w-36"
             />
           </div>
         </div>
+
+        <div className="flex items-center gap-2">
+          {selectedIds.length > 0 && (
+            <span className="text-xs font-medium text-primary mr-2">
+              {selectedIds.length} selected
+              {progress && ` (${progress.done}/${progress.total})`}
+            </span>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={downloadZipPdfs}
+            disabled={!selectedIds.length || busy !== null}
+          >
+            <Package className="mr-1.5 h-3.5 w-3.5" />
+            ZIP
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={downloadMergedXlsx}
+            disabled={!selectedIds.length || busy !== null}
+          >
+            <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
+            XLSX
+          </Button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="w-10">
                 <Checkbox
                   checked={allChecked}
@@ -366,18 +378,18 @@ export function InvoiceTableClient(props: {
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead>Invoice No.</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Action</TableHead>
+              <TableHead className="font-medium">Invoice</TableHead>
+              <TableHead className="font-medium">Client</TableHead>
+              <TableHead className="font-medium">Date</TableHead>
+              <TableHead className="text-right font-medium">Amount</TableHead>
+              <TableHead className="font-medium">Status</TableHead>
+              <TableHead className="w-20"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visibleRows.length ? (
               visibleRows.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className="group">
                   <TableCell>
                     <Checkbox
                       checked={Boolean(selected[r.id])}
@@ -387,74 +399,73 @@ export function InvoiceTableClient(props: {
                       aria-label={`Select ${r.invoiceNo}`}
                     />
                   </TableCell>
-                  <TableCell className="font-medium">{r.invoiceNo}</TableCell>
-                  <TableCell className="max-w-[22rem] truncate">{r.clientName}</TableCell>
-                  <TableCell>{r.invoiceDate}</TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell>
+                    <Link href={`/invoices/${r.id}`} className="font-medium text-primary hover:underline">
+                      {r.invoiceNo}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="max-w-[22rem] truncate text-sm">{r.clientName}</TableCell>
+                  <TableCell className="text-sm tabular-nums text-muted-foreground">{r.invoiceDate}</TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">
                     {formatINR(r.amount)}
                   </TableCell>
-                  <TableCell>{r.status}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={r.status} />
+                  </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Link
-                        href={`/invoices/${r.id}`}
-                        className={cn(
-                          buttonVariants({ variant: "secondary", size: "sm" }),
-                        )}
-                      >
-                        Open
-                      </Link>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button variant="ghost" size="icon" aria-label="Actions">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          }
-                        />
-                         <DropdownMenuContent align="end">
-                          {r.pdfName ? (
-                            <DropdownMenuItem onClick={() => window.open(`/api/invoices/${r.id}/download`, "_blank")}>
-                              <Download className="h-4 w-4 mr-2" />
-                              Download Cloud PDF
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem disabled className="opacity-50 cursor-not-allowed">
-                              <Download className="h-4 w-4 mr-2" />
-                              No Cloud PDF Stored
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem onClick={() => downloadSinglePdf(r.id)}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Actions">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
+                       <DropdownMenuContent align="end">
+                        {r.pdfName ? (
+                          <DropdownMenuItem onClick={() => window.open(`/api/invoices/${r.id}/download`, "_blank")}>
                             <Download className="h-4 w-4 mr-2" />
-                            Render & Download PDF
+                            Download Saved PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => downloadSingleXlsx(r.id)}>
-                            <FileSpreadsheet className="h-4 w-4 mr-2" />
-                            Download XLSX
+                        ) : (
+                          <DropdownMenuItem disabled className="opacity-50 cursor-not-allowed">
+                            <Download className="h-4 w-4 mr-2" />
+                            No Saved PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => removeInvoice(r.id)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                        )}
+                        <DropdownMenuItem onClick={() => downloadSinglePdf(r.id)}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Render PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => downloadSingleXlsx(r.id)}>
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Download XLSX
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => removeInvoice(r.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center">
-                  <div className="text-sm text-muted-foreground">No invoices found.</div>
-                  <div className="mt-4">
+                <TableCell colSpan={7} className="py-16 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                      <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="text-sm text-muted-foreground">No invoices found</div>
                     <Link
                       href="/invoices/new"
-                      className={cn(buttonVariants({ variant: "default" }))}
+                      className={cn(buttonVariants({ variant: "default", size: "sm" }))}
                     >
-                      Create Invoice
+                      Create your first invoice
                     </Link>
                   </div>
                 </TableCell>

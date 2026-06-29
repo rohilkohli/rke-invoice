@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { TrendingUp, CreditCard, Clock, Plus } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { getOrCreateCompanySettings } from "@/lib/bootstrap";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { InvoiceTableClient } from "@/components/dashboard/InvoiceTableClient";
 
@@ -47,65 +47,88 @@ export default async function DashboardPage() {
     new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 0,
     }).format(n);
 
+  const metrics = [
+    {
+      label: "Total Invoiced",
+      value: format(totalInvoiced),
+      subtext: "This month",
+      icon: TrendingUp,
+      color: "text-primary",
+      bg: "bg-primary/10",
+    },
+    {
+      label: "Paid",
+      value: format(totalPaid),
+      subtext: "This month",
+      icon: CreditCard,
+      color: "text-emerald-600 dark:text-emerald-400",
+      bg: "bg-emerald-500/10",
+    },
+    {
+      label: "Pending",
+      value: format(pending),
+      subtext: "Outstanding",
+      icon: Clock,
+      color: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-500/10",
+    },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-lg font-semibold tracking-tight">Dashboard</div>
-          <div className="text-sm text-muted-foreground">
-            Invoices overview and quick actions
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Overview of your invoicing activity
+          </p>
         </div>
         <Link
           href="/invoices/new"
-          className={cn(buttonVariants({ variant: "default" }))}
+          className={cn(
+            buttonVariants({ variant: "default" }),
+            "shadow-md shadow-primary/20"
+          )}
         >
+          <Plus className="mr-2 h-4 w-4" />
           Create Invoice
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">
-              Total Invoiced (This Month)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold tabular-nums">
-            {format(totalInvoiced)}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">
-              Total Paid (This Month)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold tabular-nums">
-            {format(totalPaid)}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">
-              Pending (This Month)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold tabular-nums">
-            {format(pending)}
-          </CardContent>
-        </Card>
+      {/* Metrics Cards */}
+      <div className="grid gap-5 md:grid-cols-3">
+        {metrics.map((m) => (
+          <div
+            key={m.label}
+            className="rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-muted-foreground">{m.label}</span>
+              <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", m.bg)}>
+                <m.icon className={cn("h-[18px] w-[18px]", m.color)} />
+              </div>
+            </div>
+            <div className="mt-3 text-2xl font-bold tabular-nums tracking-tight">
+              {m.value}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{m.subtext}</p>
+          </div>
+        ))}
       </div>
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="text-base">Recent Invoices</CardTitle>
-          <div className="text-sm text-muted-foreground">{invoices.length} total</div>
-        </CardHeader>
-        <CardContent>
+      {/* Invoices Table */}
+      <div className="rounded-xl border border-border bg-card shadow-sm">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <div>
+            <h2 className="text-base font-semibold">Recent Invoices</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{invoices.length} invoices total</p>
+          </div>
+        </div>
+        <div className="p-5">
           <InvoiceTableClient
             rows={invoices.map((inv) => ({
               id: inv.id,
@@ -131,8 +154,8 @@ export default async function DashboardPage() {
               termsAndConditions: company.termsAndConditions,
             }}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

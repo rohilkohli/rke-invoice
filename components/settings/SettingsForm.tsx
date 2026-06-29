@@ -2,11 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Save, Trash2, Upload } from "lucide-react";
+import { Save, Trash2, Upload, Building2, CreditCard, Sliders, PenTool } from "lucide-react";
 
 import { updateCompanySettings } from "@/app/actions/settings";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,26 +75,31 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
     });
   };
 
+  const sectionClass = "rounded-xl border border-border bg-card shadow-sm overflow-hidden";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-lg font-semibold tracking-tight">Settings</div>
-          <div className="text-sm text-muted-foreground">
-            Company profile, defaults, and invoice numbering
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Company profile, banking, and invoice defaults
+          </p>
         </div>
-        <Button onClick={save} disabled={saving}>
+        <Button onClick={save} disabled={saving} className="shadow-md shadow-primary/20">
           <Save className="mr-2 h-4 w-4" />
-          {saving ? "Saving..." : "Save"}
+          {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Company Profile</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
+      {/* Company Profile */}
+      <div className={sectionClass}>
+        <div className="border-b border-border px-6 py-4 flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Company Profile</h2>
+        </div>
+        <div className="p-6 grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label>Company Name</Label>
             <Input
@@ -132,9 +136,8 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
               onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
             />
           </div>
-
           <div className="space-y-2">
-            <Label>Logo (Upload)</Label>
+            <Label>Logo</Label>
             <Input
               type="file"
               accept="image/*"
@@ -145,11 +148,11 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
                 setForm((p) => ({ ...p, logoUrl: dataUrl }));
               }}
             />
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Recommended: Square PNG with transparent background, 512x512 pixels.
+            <p className="text-xs text-muted-foreground">
+              Square PNG, 512x512px recommended
             </p>
             {form.logoUrl ? (
-              <div className="mt-2 h-16 rounded-lg border bg-white p-2">
+              <div className="mt-2 h-16 rounded-lg border border-border bg-white p-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={form.logoUrl}
@@ -159,9 +162,8 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
               </div>
             ) : null}
           </div>
-
           <div className="space-y-2">
-            <Label>Default Signature Image (Optional)</Label>
+            <Label>Default Signature Image</Label>
             <Input
               type="file"
               accept="image/*"
@@ -173,7 +175,7 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
               }}
             />
             {form.signatureUrl ? (
-              <div className="mt-2 h-16 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-2 overflow-hidden shadow-inner">
+              <div className="mt-2 h-16 rounded-lg border border-border bg-muted/30 p-2 overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={form.signatureUrl}
@@ -183,14 +185,16 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
               </div>
             ) : null}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Bank & UPI</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
+      {/* Bank & UPI */}
+      <div className={sectionClass}>
+        <div className="border-b border-border px-6 py-4 flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Bank & UPI</h2>
+        </div>
+        <div className="p-6 grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label>Bank Name</Label>
             <Input
@@ -226,14 +230,16 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
               onChange={(e) => setForm((p) => ({ ...p, upiId: e.target.value }))}
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Defaults</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
+      {/* Defaults */}
+      <div className={sectionClass}>
+        <div className="border-b border-border px-6 py-4 flex items-center gap-2">
+          <Sliders className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Invoice Defaults</h2>
+        </div>
+        <div className="p-6 grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label>CGST %</Label>
             <Input
@@ -264,7 +270,6 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
               }
             />
           </div>
-
           <div className="space-y-2 md:col-span-3">
             <Label>Invoice Prefix / Format</Label>
             <Input
@@ -273,7 +278,6 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
               placeholder="RKE-2026-"
             />
           </div>
-
           <div className="space-y-2 md:col-span-3">
             <Label>Terms & Conditions</Label>
             <Textarea
@@ -284,22 +288,25 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
               className="min-h-32"
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Saved Signature (Local)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      {/* Local Signature */}
+      <div className={sectionClass}>
+        <div className="border-b border-border px-6 py-4 flex items-center gap-2">
+          <PenTool className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Saved Signature (Local)</h2>
+        </div>
+        <div className="p-6 space-y-3">
           {localSig ? (
-            <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="rounded-lg border border-border bg-muted/20 p-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-medium">Local signature is saved</div>
+                <div className="text-sm font-medium">Local signature saved</div>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
+                  className="text-destructive hover:text-destructive"
                   onClick={() => {
                     localStorage.removeItem(LOCAL_SIGNATURE_KEY);
                     setLocalSig(null);
@@ -310,7 +317,7 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
                   Clear
                 </Button>
               </div>
-              <div className="mt-3 h-24 rounded-md border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-2 overflow-hidden shadow-inner">
+              <div className="mt-3 h-24 rounded-md border border-border bg-muted/30 p-2 overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={localSig}
@@ -321,16 +328,16 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">
-              No local signature saved yet. Draw/Upload/Type a signature on an invoice and it will be stored automatically.
+              No local signature saved. Draw or upload a signature on an invoice to save it automatically.
             </div>
           )}
 
-          <div className="text-xs text-muted-foreground">
-            <Upload className="inline-block mr-2 h-3.5 w-3.5" />
-            Tip: You can also set a default signature image above (stored in the database).
+          <div className="text-xs text-muted-foreground flex items-center gap-2">
+            <Upload className="h-3.5 w-3.5" />
+            You can also set a default signature image above (stored in the database).
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

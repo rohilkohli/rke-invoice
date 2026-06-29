@@ -127,28 +127,27 @@ Total Amount: ₹${totalAmount}`;
   return (
     <div className={`grid gap-6 ${showPreview ? "lg:grid-cols-[1fr_640px]" : "grid-cols-1"}`}>
       <div className="min-w-0">
-        <div className="mb-4 rounded-xl border bg-card p-4 flex flex-wrap items-center justify-between gap-4">
+        {/* Export & Preview Controls */}
+        <div className="mb-5 rounded-xl border border-border bg-card p-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
           <div>
-            <div className="text-sm font-medium">Exports</div>
-            <div className="mt-3">
-              <div className="flex flex-wrap gap-2">
-                <PdfActions
-                  invoice={invoice}
-                  company={props.company}
-                  qrDataUrl={qrDataUrl}
-                />
-                <XlsxActions invoice={invoice} company={props.company} />
-              </div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Export Options</div>
+            <div className="flex flex-wrap gap-2">
+              <PdfActions
+                invoice={invoice}
+                company={props.company}
+                qrDataUrl={qrDataUrl}
+              />
+              <XlsxActions invoice={invoice} company={props.company} />
             </div>
           </div>
 
-          <div className="hidden lg:flex items-center gap-2 border-l pl-4 border-neutral-200 dark:border-neutral-800">
+          <div className="hidden lg:flex items-center gap-3 border-l border-border pl-4">
             <Switch
               id="show-preview"
               checked={showPreview}
               onCheckedChange={setShowPreview}
             />
-            <Label htmlFor="show-preview" className="text-xs font-semibold cursor-pointer">
+            <Label htmlFor="show-preview" className="text-sm font-medium cursor-pointer">
               Live Preview
             </Label>
           </div>
@@ -159,12 +158,13 @@ Total Amount: ₹${totalAmount}`;
 
       {showPreview && (
         <div className="hidden lg:block">
-          <div className="sticky top-6">
-            <div className="mb-3 text-sm font-medium text-muted-foreground">
-              Live Preview
+          <div className="sticky top-20">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs font-medium text-muted-foreground">Live Preview</span>
             </div>
-            <ScrollArea className="h-[calc(100vh-8rem)] rounded-xl">
-              <div className="p-2 pl-8 pr-4">
+            <ScrollArea className="h-[calc(100vh-10rem)] rounded-xl border border-border bg-white dark:bg-neutral-950 shadow-sm">
+              <div className="p-4">
                 <InvoicePreview company={props.company} />
               </div>
             </ScrollArea>
@@ -172,7 +172,6 @@ Total Amount: ₹${totalAmount}`;
         </div>
       )}
 
-      {/* Hidden QR renderer used to embed QR into the generated PDF */}
       {qrPayload ? (
         <div className="sr-only" aria-hidden>
           <UPIQRCode value={qrPayload} size={256} onDataUrl={setQrDataUrl} />

@@ -9,15 +9,15 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/invoices/new", label: "New Invoice", icon: FilePlus2 },
-  { href: "/ledger", label: "Client Ledger", icon: BookOpen },
+  { href: "/ledger", label: "Ledger", icon: BookOpen },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function SidebarNav() {
+export function TopNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="space-y-1">
+    <>
       {navItems.map((item) => {
         const active =
           pathname === item.href ||
@@ -28,17 +28,17 @@ export function SidebarNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+              "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
               active
-                ? "bg-primary/10 text-primary shadow-sm"
+                ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground",
             )}
           >
-            <Icon className={cn("h-[18px] w-[18px]", active && "text-primary")} />
+            <Icon className="h-4 w-4" />
             <span>{item.label}</span>
           </Link>
         );
       })}
-    </nav>
+    </>
   );
 }
