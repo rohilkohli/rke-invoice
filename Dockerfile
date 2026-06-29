@@ -39,18 +39,24 @@ ENV DATABASE_URL="file:/app/prisma/dev.db"
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Create and set permissions on the persistent sqlite directory
-RUN mkdir -p /app/prisma && chown -R nextjs:nodejs /app/prisma
+# Create directories for persistent data and seed fallback
+RUN mkdir -p /app/prisma /app/prisma-seed && chown -R nextjs:nodejs /app/prisma /app/prisma-seed
 
 # Copy static assets and built standalone files
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
+# Copy the seed database as a fallback (not into /app/prisma which gets mounted over)
+COPY --from=builder --chown=nextjs:nodejs /app/prisma/dev.db ./prisma-seed/dev.db
+COPY --from=builder --chown=nextjs:nodejs /app/prisma/schema.prisma ./prisma/schema.prisma
+
+# Copy entrypoint script
+COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
 USER nextjs
 
 EXPOSE 3000
 
-# Launch Next.js standalone server
-CMD ["node", "server.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
