@@ -17,10 +17,14 @@ COPY . .
 
 # Generate Prisma Client and create database schema
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATABASE_URL="file:./prisma/dev.db"
+ENV DATABASE_URL="file:/app/prisma/dev.db"
+RUN mkdir -p /app/prisma
 RUN npx prisma generate
 RUN npx prisma db push --accept-data-loss
 RUN npx prisma db seed
+
+# Verify the database was created
+RUN ls -la /app/prisma/dev.db
 
 # Build standalone Next.js bundle
 RUN npm run build
@@ -49,7 +53,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy the seed database as a fallback (not into /app/prisma which gets mounted over)
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/dev.db ./prisma-seed/dev.db
-COPY --from=builder --chown=nextjs:nodejs /app/prisma/schema.prisma ./prisma/schema.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma/schema.prisma ./prisma-seed/schema.prisma
 
 # Copy entrypoint script
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh
