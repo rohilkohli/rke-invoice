@@ -23,10 +23,12 @@ function DecimalInput({
   value,
   onChange,
   className,
+  placeholder,
 }: {
   value: number;
   onChange: (n: number) => void;
   className?: string;
+  placeholder?: string;
 }) {
   const [raw, setRaw] = useState(value === 0 ? "" : String(value));
 
@@ -40,6 +42,7 @@ function DecimalInput({
     <Input
       inputMode="decimal"
       className={className}
+      placeholder={placeholder}
       value={raw}
       onChange={(e) => {
         const str = e.target.value;
