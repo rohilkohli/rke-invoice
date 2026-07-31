@@ -407,7 +407,9 @@ export function InvoicePDF(props: {
 
         {/* SECTION 1 — TOP HEADER BAR */}
         <View style={styles.titleBar}>
-          <Text style={styles.titleLeft}>Tax Invoice ({props.copy} COPY)</Text>
+          <Text style={styles.titleLeft}>
+            {props.invoice.status === "QUOTATION" ? "Quotation" : `Tax Invoice (${props.copy} COPY)`}
+          </Text>
           <View style={styles.titleRight}>
             <View style={styles.qrContainer}>
               {props.qrDataUrl ? (
@@ -497,6 +499,18 @@ export function InvoicePDF(props: {
                 <Text style={styles.metaValue}>-</Text>
               </View>
             </View>
+            {(props.invoice.irn || props.invoice.ewayBillNo) && (
+              <View style={styles.metaRowLast}>
+                <View style={styles.metaCell}>
+                  <Text style={styles.metaLabel}>IRN</Text>
+                  <Text style={[styles.metaValue, { fontSize: 5.5 }]}>{props.invoice.irn || "-"}</Text>
+                </View>
+                <View style={styles.metaCellLast}>
+                  <Text style={styles.metaLabel}>E-Way Bill No.</Text>
+                  <Text style={styles.metaValue}>{props.invoice.ewayBillNo || "-"}</Text>
+                </View>
+              </View>
+            )}
           </View>
         </View>
 
@@ -564,7 +578,14 @@ export function InvoicePDF(props: {
             return (
               <View key={idx} style={isLast ? styles.tdLast : styles.td}>
                 <Text style={styles.colNo}>{hasData ? idx + 1 : ""}</Text>
-                <Text style={styles.colDesc}>{item.description || ""}</Text>
+                <View style={styles.colDesc}>
+                  <Text>{item.description || ""}</Text>
+                  {(item.meterStart != null || item.meterEnd != null) && (
+                    <Text style={{ fontSize: 5.5, color: "#444", marginTop: 1 }}>
+                      [Meter Start: {item.meterStart ?? 0} | End: {item.meterEnd ?? 0}]
+                    </Text>
+                  )}
+                </View>
                 <Text style={styles.colHsn}>{item.hsnSac || ""}</Text>
                 <Text style={styles.colGst}>{itemGstRate}</Text>
                 <Text style={styles.colUom}>{item.unit || ""}</Text>

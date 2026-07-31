@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -11,6 +11,7 @@ enum InvoiceStatus {
   DRAFT
   SENT
   PAID
+  QUOTATION
 }
 
 enum SignatureType {
@@ -40,6 +41,9 @@ model Invoice {
   cgstRate        Decimal       @default(9)
   sgstRate        Decimal       @default(9)
   igstRate        Decimal       @default(18)
+
+  irn             String?
+  ewayBillNo      String?
 
   totalBeforeTax  Decimal       @default(0)
   cgst            Decimal       @default(0)
@@ -104,6 +108,11 @@ model LineItem {
   rate        Decimal  @default(0)
   amount      Decimal  @default(0)
 
+  equipmentId Int?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+  meterStart  Decimal?
+  meterEnd    Decimal?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -162,6 +171,7 @@ model User {
   payments        Payment[]
   clients         Client[]
   companySettings CompanySettings[]
+  equipment       Equipment[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
@@ -180,5 +190,21 @@ model Payment {
   updatedAt   DateTime @updatedAt
 
   @@index([clientId])
+  @@index([userId])
+}
+
+model Equipment {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  serialNo  String?
+  status    String     @default("AVAILABLE") // AVAILABLE, RENTED, MAINTENANCE
+
+  lineItems LineItem[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
   @@index([userId])
 }

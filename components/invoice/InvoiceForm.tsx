@@ -345,8 +345,27 @@ export function InvoiceForm(props: {
                     <SelectItem value="DRAFT">Draft</SelectItem>
                     <SelectItem value="SENT">Sent</SelectItem>
                     <SelectItem value="PAID">Paid</SelectItem>
+                    <SelectItem value="QUOTATION">Quotation</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>E-Way Bill No.</Label>
+                  <Input
+                    value={invoice.ewayBillNo ?? ""}
+                    onChange={(e) => setField("ewayBillNo", e.target.value)}
+                    placeholder="E-Way Bill"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>IRN</Label>
+                  <Input
+                    value={invoice.irn ?? ""}
+                    onChange={(e) => setField("irn", e.target.value)}
+                    placeholder="Invoice Reference Number"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -797,8 +816,25 @@ export function InvoiceForm(props: {
                   <SelectItem value="DRAFT">Draft</SelectItem>
                   <SelectItem value="SENT">Sent</SelectItem>
                   <SelectItem value="PAID">Paid</SelectItem>
+                  <SelectItem value="QUOTATION">Quotation</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>E-Way Bill No.</Label>
+              <Input
+                value={invoice.ewayBillNo ?? ""}
+                onChange={(e) => setField("ewayBillNo", e.target.value)}
+                placeholder="E-Way Bill"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>IRN</Label>
+              <Input
+                value={invoice.irn ?? ""}
+                onChange={(e) => setField("irn", e.target.value)}
+                placeholder="Invoice Reference Number"
+              />
             </div>
             <div className="space-y-2">
               <Label>State of Supply</Label>

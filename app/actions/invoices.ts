@@ -23,6 +23,9 @@ const lineItemSchema = z.object({
   unit: z.string().min(1),
   qty: z.number().nonnegative(),
   rate: z.number().nonnegative(),
+  equipmentId: z.number().int().optional().nullable(),
+  meterStart: z.number().optional().nullable(),
+  meterEnd: z.number().optional().nullable(),
 });
 
 const invoiceSchema = z.object({
@@ -38,7 +41,9 @@ const invoiceSchema = z.object({
   transportMode: z.string().optional().nullable(),
   vehicleNo: z.string().optional().nullable(),
   placeOfSupply: z.string().optional().nullable(),
-  status: z.enum(["DRAFT", "SENT", "PAID"]),
+  irn: z.string().optional().nullable(),
+  ewayBillNo: z.string().optional().nullable(),
+  status: z.enum(["DRAFT", "SENT", "PAID", "QUOTATION"]),
   reverseCharge: z.boolean(),
 
   cgstRate: z.number().nonnegative(),
@@ -146,6 +151,8 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
       transportMode: data.transportMode ?? null,
       vehicleNo: data.vehicleNo ?? null,
       placeOfSupply: data.placeOfSupply ?? null,
+      irn: data.irn ?? null,
+      ewayBillNo: data.ewayBillNo ?? null,
       status: data.status,
       reverseCharge: data.reverseCharge,
 
@@ -170,6 +177,9 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
           qty: toDecimal(li.qty),
           rate: toDecimal(li.rate),
           amount: toDecimal(calculateLineAmount(li.qty, li.rate)),
+          equipmentId: li.equipmentId ?? null,
+          meterStart: li.meterStart != null ? toDecimal(li.meterStart) : null,
+          meterEnd: li.meterEnd != null ? toDecimal(li.meterEnd) : null,
         })),
       },
       signature: data.signature
@@ -263,6 +273,8 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
         transportMode: data.transportMode ?? null,
         vehicleNo: data.vehicleNo ?? null,
         placeOfSupply: data.placeOfSupply ?? null,
+        irn: data.irn ?? null,
+        ewayBillNo: data.ewayBillNo ?? null,
         status: data.status,
         reverseCharge: data.reverseCharge,
 
@@ -287,6 +299,9 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
             qty: toDecimal(li.qty),
             rate: toDecimal(li.rate),
             amount: toDecimal(calculateLineAmount(li.qty, li.rate)),
+            equipmentId: li.equipmentId ?? null,
+            meterStart: li.meterStart != null ? toDecimal(li.meterStart) : null,
+            meterEnd: li.meterEnd != null ? toDecimal(li.meterEnd) : null,
           })),
         },
         signature: data.signature

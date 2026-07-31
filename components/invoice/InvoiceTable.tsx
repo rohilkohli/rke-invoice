@@ -130,6 +130,30 @@ export function InvoiceTable() {
                     className="min-h-[60px] resize-y"
                     rows={2}
                   />
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Meter Start</label>
+                      <DecimalInput
+                        value={li.meterStart ?? 0}
+                        onChange={(n) => {
+                          const mStart = n || null;
+                          const qty = (li.meterEnd ?? 0) - (mStart ?? 0);
+                          setLineItem(idx, { meterStart: mStart, qty: qty > 0 ? qty : li.qty });
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Meter End</label>
+                      <DecimalInput
+                        value={li.meterEnd ?? 0}
+                        onChange={(n) => {
+                          const mEnd = n || null;
+                          const qty = (mEnd ?? 0) - (li.meterStart ?? 0);
+                          setLineItem(idx, { meterEnd: mEnd, qty: qty > 0 ? qty : li.qty });
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -227,9 +251,31 @@ export function InvoiceTable() {
                       onChange={(e) =>
                         setLineItem(idx, { description: e.target.value })
                       }
-                      className="min-h-[60px] resize-y"
+                      className="min-h-[60px] resize-y mb-2"
                       rows={2}
                     />
+                    <div className="flex gap-2">
+                      <DecimalInput
+                        className="h-8 text-xs placeholder:text-[10px]"
+                        value={li.meterStart ?? 0}
+                        onChange={(n) => {
+                          const mStart = n || null;
+                          const qty = (li.meterEnd ?? 0) - (mStart ?? 0);
+                          setLineItem(idx, { meterStart: mStart, qty: qty > 0 ? qty : li.qty });
+                        }}
+                        placeholder="Meter Start"
+                      />
+                      <DecimalInput
+                        className="h-8 text-xs placeholder:text-[10px]"
+                        value={li.meterEnd ?? 0}
+                        onChange={(n) => {
+                          const mEnd = n || null;
+                          const qty = (mEnd ?? 0) - (li.meterStart ?? 0);
+                          setLineItem(idx, { meterEnd: mEnd, qty: qty > 0 ? qty : li.qty });
+                        }}
+                        placeholder="Meter End"
+                      />
+                    </div>
                   </TableCell>
                   <TableCell className="align-top pt-2">
                     <Input

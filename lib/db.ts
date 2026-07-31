@@ -15,8 +15,4 @@ export const prisma =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-if (process.env.NODE_ENV === "production") {
-  prisma.$executeRawUnsafe("PRAGMA journal_mode=DELETE;").catch(() => {});
-  prisma.$executeRawUnsafe("PRAGMA busy_timeout=5000;").catch(() => {});
-}
 

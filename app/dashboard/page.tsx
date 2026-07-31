@@ -10,6 +10,8 @@ import { InvoiceTableClient } from "@/components/dashboard/InvoiceTableClient";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }

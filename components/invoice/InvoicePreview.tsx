@@ -132,7 +132,9 @@ Total Amount: ₹${totalAmount}`;
       <div className="relative z-10 space-y-2">
         {/* SECTION 1 — TOP HEADER BAR */}
         <div className="flex items-center justify-between border-b border-black pb-1.5">
-          <span className="text-sm font-bold uppercase">Tax Invoice (ORIGINAL COPY)</span>
+          <span className="text-sm font-bold uppercase">
+            {invoice.status === "QUOTATION" ? "Quotation" : "Tax Invoice (ORIGINAL COPY)"}
+          </span>
           <div className="flex items-center gap-2">
             <div className="flex flex-col items-center">
               <div className="h-20 w-20 bg-white border border-black flex items-center justify-center p-0.5 overflow-hidden">
@@ -214,6 +216,18 @@ Total Amount: ₹${totalAmount}`;
               <div className="text-neutral-500 uppercase text-[7px]">Terms of Delivery</div>
               <div>-</div>
             </div>
+            {(invoice.irn || invoice.ewayBillNo) && (
+              <>
+                <div className="border-t border-r border-black p-1">
+                  <div className="text-neutral-500 uppercase text-[7px]">IRN</div>
+                  <div className="text-[7px] break-all">{invoice.irn || "-"}</div>
+                </div>
+                <div className="border-t border-black p-1">
+                  <div className="text-neutral-500 uppercase text-[7px]">E-Way Bill No.</div>
+                  <div className="text-[8px] font-semibold">{invoice.ewayBillNo || "-"}</div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -290,7 +304,14 @@ Total Amount: ₹${totalAmount}`;
                   className="grid grid-cols-[30px_1fr_50px_45px_35px_40px_60px_65px] py-1 text-center items-center min-h-[18px]"
                 >
                   <div className="text-neutral-500 font-semibold">{hasData ? idx + 1 : ""}</div>
-                  <div className="text-left pl-1 font-medium truncate">{item.description || ""}</div>
+                  <div className="text-left pl-1 font-medium truncate">
+                    {item.description || ""}
+                    {(item.meterStart != null || item.meterEnd != null) && (
+                      <span className="text-[7px] font-normal text-neutral-600 block mt-0.5">
+                        [Meter Start: {item.meterStart ?? 0} | End: {item.meterEnd ?? 0}]
+                      </span>
+                    )}
+                  </div>
                   <div>{item.hsnSac || ""}</div>
                   <div>{itemGstRate}</div>
                   <div>{item.unit || ""}</div>

@@ -78,6 +78,7 @@ function StatusBadge({ status }: { status: InvoiceStatus }) {
     DRAFT: { label: "Draft", className: "bg-muted text-muted-foreground" },
     SENT: { label: "Sent", className: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400" },
     PAID: { label: "Paid", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400" },
+    QUOTATION: { label: "Quotation", className: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400" },
   }[status] || { label: status, className: "bg-muted text-muted-foreground" };
 
   return (
@@ -303,7 +304,7 @@ export function InvoiceTableClient(props: {
             value={status}
             onValueChange={(v) => {
               const next =
-                v === "ALL" || v === "DRAFT" || v === "SENT" || v === "PAID"
+                v === "ALL" || v === "DRAFT" || v === "SENT" || v === "PAID" || v === "QUOTATION"
                   ? (v as "ALL" | InvoiceStatus)
                   : "ALL";
               setStatus(next);
@@ -317,6 +318,7 @@ export function InvoiceTableClient(props: {
               <SelectItem value="DRAFT">Draft</SelectItem>
               <SelectItem value="SENT">Sent</SelectItem>
               <SelectItem value="PAID">Paid</SelectItem>
+              <SelectItem value="QUOTATION">Quotation</SelectItem>
             </SelectContent>
           </Select>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

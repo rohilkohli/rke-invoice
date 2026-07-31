@@ -1,4 +1,4 @@
-export type InvoiceStatus = "DRAFT" | "SENT" | "PAID";
+export type InvoiceStatus = "DRAFT" | "SENT" | "PAID" | "QUOTATION";
 export type SignatureType = "DRAWN" | "UPLOADED" | "TYPED";
 
 export type ClientForm = {
@@ -19,6 +19,10 @@ export type LineItemForm = {
   unit: string;
   qty: number;
   rate: number;
+
+  equipmentId?: number | null;
+  meterStart?: number | null;
+  meterEnd?: number | null;
 };
 
 export type SignatureForm =
@@ -41,6 +45,9 @@ export type InvoiceFormData = {
   transportMode?: string;
   vehicleNo?: string;
   placeOfSupply?: string;
+
+  irn?: string;
+  ewayBillNo?: string;
 
   status: InvoiceStatus;
   reverseCharge: boolean;
