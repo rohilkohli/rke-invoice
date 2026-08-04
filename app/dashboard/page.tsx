@@ -3,6 +3,7 @@ import { TrendingUp, CreditCard, Clock, Plus } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { getOrCreateCompanySettings } from "@/lib/bootstrap";
+import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { InvoiceTableClient } from "@/components/dashboard/InvoiceTableClient";
@@ -58,8 +59,9 @@ export default async function DashboardPage() {
       value: format(totalInvoiced),
       subtext: "This month",
       icon: TrendingUp,
-      color: "text-primary",
-      bg: "bg-primary/10",
+      color: "text-blue-600 dark:text-blue-400",
+      bg: "bg-blue-500/10",
+      border: "border-blue-500/50 dark:border-blue-500/40",
     },
     {
       label: "Paid",
@@ -68,6 +70,7 @@ export default async function DashboardPage() {
       icon: CreditCard,
       color: "text-emerald-600 dark:text-emerald-400",
       bg: "bg-emerald-500/10",
+      border: "border-emerald-500/50 dark:border-emerald-500/40",
     },
     {
       label: "Pending",
@@ -76,6 +79,7 @@ export default async function DashboardPage() {
       icon: Clock,
       color: "text-amber-600 dark:text-amber-400",
       bg: "bg-amber-500/10",
+      border: "border-amber-500/60 dark:border-amber-500/40",
     },
   ];
 
@@ -106,7 +110,10 @@ export default async function DashboardPage() {
         {metrics.map((m) => (
           <div
             key={m.label}
-            className="rounded-xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow"
+            className={cn(
+              "rounded-xl border bg-card p-6 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 ease-out",
+              m.border
+            )}
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-muted-foreground">{m.label}</span>
@@ -152,7 +159,7 @@ export default async function DashboardPage() {
               accountNo: company.accountNo,
               ifsc: company.ifsc,
               upiId: company.upiId,
-              logoUrl: company.logoUrl,
+              logoUrl: resolveLogoDataUrl(company.logoUrl),
               termsAndConditions: company.termsAndConditions,
             }}
           />

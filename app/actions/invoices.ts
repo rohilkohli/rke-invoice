@@ -15,6 +15,7 @@ import {
   roundMoney,
 } from "@/lib/calculations";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
+import { syncInvoiceToGDrive, deleteInvoiceFromGDrive } from "@/lib/gdrive";
 
 const lineItemSchema = z.object({
   sno: z.number().int().min(1),
@@ -195,6 +196,7 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
   });
 
   revalidatePath("/dashboard");
+  syncInvoiceToGDrive(invoice.id).catch(() => {});
   return { success: true, id: invoice.id };
 }
 
@@ -255,69 +257,76 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
         },
       });
 
-  await prisma.$transaction(async (tx) => {
-    await tx.lineItem.deleteMany({ where: { invoiceId: data.id } });
-    await tx.signature.deleteMany({ where: { invoiceId: data.id } });
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.lineItem.deleteMany({ where: { invoiceId: data.id } });
+      await tx.signature.deleteMany({ where: { invoiceId: data.id } });
 
-    await tx.invoice.update({
-      where: { id: existingInvoice.id },
-      data: {
-        invoiceNo: data.invoiceNo.trim(),
-        invoiceDate: new Date(data.invoiceDate),
-        poNo: data.poNo ?? null,
-        billPeriodStart: toDate(data.billPeriodStart) ?? undefined,
-        billPeriodEnd: toDate(data.billPeriodEnd) ?? undefined,
+      await tx.invoice.update({
+        where: { id: existingInvoice.id },
+        data: {
+          invoiceNo: data.invoiceNo.trim(),
+          invoiceDate: new Date(data.invoiceDate),
+          poNo: data.poNo ?? null,
+          billPeriodStart: toDate(data.billPeriodStart) ?? undefined,
+          billPeriodEnd: toDate(data.billPeriodEnd) ?? undefined,
 
-        state: data.state,
-        stateCode: data.stateCode,
-        transportMode: data.transportMode ?? null,
-        vehicleNo: data.vehicleNo ?? null,
-        placeOfSupply: data.placeOfSupply ?? null,
-        irn: data.irn ?? null,
-        ewayBillNo: data.ewayBillNo ?? null,
-        status: data.status,
-        reverseCharge: data.reverseCharge,
+          state: data.state,
+          stateCode: data.stateCode,
+          transportMode: data.transportMode ?? null,
+          vehicleNo: data.vehicleNo ?? null,
+          placeOfSupply: data.placeOfSupply ?? null,
+          irn: data.irn ?? null,
+          ewayBillNo: data.ewayBillNo ?? null,
+          status: data.status,
+          reverseCharge: data.reverseCharge,
 
-        cgstRate: toDecimal(data.cgstRate),
-        sgstRate: toDecimal(data.sgstRate),
-        igstRate: toDecimal(data.igstRate),
+          cgstRate: toDecimal(data.cgstRate),
+          sgstRate: toDecimal(data.sgstRate),
+          igstRate: toDecimal(data.igstRate),
 
-        totalBeforeTax: toDecimal(totals.totalBeforeTax),
-        cgst: toDecimal(totals.cgst),
-        sgst: toDecimal(totals.sgst),
-        igst: toDecimal(totals.igst),
-        grandTotal: toDecimal(totals.grandTotal),
-        amountInWords,
+          totalBeforeTax: toDecimal(totals.totalBeforeTax),
+          cgst: toDecimal(totals.cgst),
+          sgst: toDecimal(totals.sgst),
+          igst: toDecimal(totals.igst),
+          grandTotal: toDecimal(totals.grandTotal),
+          amountInWords,
 
-        clientId: client.id,
-        lineItems: {
-          create: data.lineItems.map((li) => ({
-            sno: li.sno,
-            description: li.description,
-            hsnSac: li.hsnSac ?? null,
-            unit: li.unit,
-            qty: toDecimal(li.qty),
-            rate: toDecimal(li.rate),
-            amount: toDecimal(calculateLineAmount(li.qty, li.rate)),
-            equipmentId: li.equipmentId ?? null,
-            meterStart: li.meterStart != null ? toDecimal(li.meterStart) : null,
-            meterEnd: li.meterEnd != null ? toDecimal(li.meterEnd) : null,
-          })),
+          clientId: client.id,
+          lineItems: {
+            create: data.lineItems.map((li) => ({
+              sno: li.sno,
+              description: li.description,
+              hsnSac: li.hsnSac ?? null,
+              unit: li.unit,
+              qty: toDecimal(li.qty),
+              rate: toDecimal(li.rate),
+              amount: toDecimal(calculateLineAmount(li.qty, li.rate)),
+              equipmentId: li.equipmentId ?? null,
+              meterStart: li.meterStart != null ? toDecimal(li.meterStart) : null,
+              meterEnd: li.meterEnd != null ? toDecimal(li.meterEnd) : null,
+            })),
+          },
+          signature: data.signature
+            ? {
+                create: {
+                  dataUrl: data.signature.dataUrl,
+                  type: data.signature.type,
+                },
+              }
+            : undefined,
         },
-        signature: data.signature
-          ? {
-              create: {
-                dataUrl: data.signature.dataUrl,
-                type: data.signature.type,
-              },
-            }
-          : undefined,
-      },
-    });
-  });
+      });
+    },
+    {
+      maxWait: 10000,
+      timeout: 20000,
+    }
+  );
 
   revalidatePath("/dashboard");
   revalidatePath(`/invoices/${data.id}`);
+  syncInvoiceToGDrive(existingInvoice.id).catch(() => {});
   return { ok: true };
 }
 
@@ -325,11 +334,21 @@ export async function deleteInvoice(id: number) {
   const user = await requireSessionUser();
   const existing = await prisma.invoice.findFirst({
     where: { id, userId: user.id },
-    select: { id: true },
+    select: { id: true, invoiceNo: true, invoiceDate: true, pdfName: true },
   });
   if (!existing) throw new Error("Invoice not found or access denied");
 
   await prisma.invoice.delete({ where: { id: existing.id } });
+
+  deleteInvoiceFromGDrive(
+    {
+      invoiceNo: existing.invoiceNo,
+      invoiceDate: existing.invoiceDate,
+      pdfName: existing.pdfName,
+    },
+    user.id
+  ).catch(() => {});
+
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -351,5 +370,6 @@ export async function saveInvoicePdf(invoiceId: number, filename: string, base64
   });
   revalidatePath("/dashboard");
   revalidatePath(`/invoices/${invoiceId}`);
+  syncInvoiceToGDrive(invoiceId).catch(() => {});
   return { ok: true };
 }

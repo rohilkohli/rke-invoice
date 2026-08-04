@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Lock, Mail, User, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 import { signUp } from "@/app/actions/auth";
-import { VideoBackground } from "@/components/ui/login-form";
 
 export default function SignupClientPage() {
   const [name, setName] = useState("");
@@ -37,11 +36,13 @@ export default function SignupClientPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-4 overflow-hidden select-none">
-      {/* Premium topographic video background */}
-      <VideoBackground />
+    <div className="relative flex min-h-screen items-center justify-center px-4 overflow-hidden select-none bg-neutral-950">
+      {/* Static dark gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(59,130,246,0.08)_0%,_transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(99,102,241,0.06)_0%,_transparent_60%)]" />
 
-      <div className="relative w-full max-w-md p-8 space-y-6 bg-neutral-900/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl z-10">
+      <div className="relative w-full max-w-md p-8 space-y-6 bg-neutral-900/60 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl z-10">
         <div className="flex flex-col items-center text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/95 border border-white/10 shadow-md p-2 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}

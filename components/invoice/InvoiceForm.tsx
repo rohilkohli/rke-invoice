@@ -12,6 +12,7 @@ import {
   getTaxMode,
 } from "@/lib/calculations";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
+import { INDIAN_STATES, getStateByCode } from "@/lib/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,34 @@ export function InvoiceForm(props: {
   const setField = useInvoiceStore((s) => s.setField);
   const setClientField = useInvoiceStore((s) => s.setClientField);
   const setInvoice = useInvoiceStore((s) => s.setInvoice);
+
+  const selectedStateName =
+    INDIAN_STATES.find(
+      (s) =>
+        s.name.toLowerCase() === invoice.state?.trim().toLowerCase() ||
+        s.code === invoice.stateCode?.trim().padStart(2, "0")
+    )?.name || invoice.state || "";
+
+  const selectedStateCode =
+    INDIAN_STATES.find(
+      (s) =>
+        s.code === invoice.stateCode?.trim().padStart(2, "0") ||
+        s.name.toLowerCase() === invoice.state?.trim().toLowerCase()
+    )?.code || invoice.stateCode || "";
+
+  const selectedClientStateName =
+    INDIAN_STATES.find(
+      (s) =>
+        s.name.toLowerCase() === invoice.client.state?.trim().toLowerCase() ||
+        s.code === invoice.client.stateCode?.trim().padStart(2, "0")
+    )?.name || invoice.client.state || "";
+
+  const selectedClientStateCode =
+    INDIAN_STATES.find(
+      (s) =>
+        s.code === invoice.client.stateCode?.trim().padStart(2, "0") ||
+        s.name.toLowerCase() === invoice.client.state?.trim().toLowerCase()
+    )?.code || invoice.client.stateCode || "";
 
   const [scanning, setScanning] = useState(false);
   const [scanMode, setScanMode] = useState<"flash" | "pro">("flash");
@@ -370,19 +399,52 @@ export function InvoiceForm(props: {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>State of Supply</Label>
-                  <Input
-                    value={invoice.state}
-                    onChange={(e) => setField("state", e.target.value)}
-                    placeholder="State"
-                  />
+                  <Select
+                    value={selectedStateName}
+                    onValueChange={(val) => {
+                      const found = INDIAN_STATES.find((s) => s.name === val);
+                      if (found) {
+                        setField("state", found.name);
+                        setField("stateCode", found.code);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((s) => (
+                        <SelectItem key={s.code} value={s.name}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>State Code</Label>
-                  <Input
-                    value={invoice.stateCode}
-                    onChange={(e) => setField("stateCode", e.target.value)}
-                    placeholder="e.g. 27"
-                  />
+                  <Select
+                    value={selectedStateCode}
+                    onValueChange={(val) => {
+                      if (!val) return;
+                      setField("stateCode", val);
+                      const match = getStateByCode(val);
+                      if (match) {
+                        setField("state", match.name);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((s) => (
+                        <SelectItem key={s.code} value={s.code}>
+                          {s.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -463,19 +525,52 @@ export function InvoiceForm(props: {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Billing State</Label>
-                  <Input
-                    value={invoice.client.state}
-                    onChange={(e) => setClientField("state", e.target.value)}
-                    placeholder="State"
-                  />
+                  <Select
+                    value={selectedClientStateName}
+                    onValueChange={(val) => {
+                      const found = INDIAN_STATES.find((s) => s.name === val);
+                      if (found) {
+                        setClientField("state", found.name);
+                        setClientField("stateCode", found.code);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((s) => (
+                        <SelectItem key={s.code} value={s.name}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Billing State Code</Label>
-                  <Input
-                    value={invoice.client.stateCode}
-                    onChange={(e) => setClientField("stateCode", e.target.value)}
-                    placeholder="e.g. 27"
-                  />
+                  <Select
+                    value={selectedClientStateCode}
+                    onValueChange={(val) => {
+                      if (!val) return;
+                      setClientField("stateCode", val);
+                      const match = getStateByCode(val);
+                      if (match) {
+                        setClientField("state", match.name);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((s) => (
+                        <SelectItem key={s.code} value={s.code}>
+                          {s.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -838,19 +933,52 @@ export function InvoiceForm(props: {
             </div>
             <div className="space-y-2">
               <Label>State of Supply</Label>
-              <Input
-                value={invoice.state}
-                onChange={(e) => setField("state", e.target.value)}
-                placeholder="State"
-              />
+              <Select
+                value={selectedStateName}
+                onValueChange={(val) => {
+                  const found = INDIAN_STATES.find((s) => s.name === val);
+                  if (found) {
+                    setField("state", found.name);
+                    setField("stateCode", found.code);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select State of Supply" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map((s) => (
+                    <SelectItem key={s.code} value={s.name}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>State Code</Label>
-              <Input
-                value={invoice.stateCode}
-                onChange={(e) => setField("stateCode", e.target.value)}
-                placeholder="e.g. 27"
-              />
+              <Select
+                value={selectedStateCode}
+                onValueChange={(val) => {
+                  if (!val) return;
+                  setField("stateCode", val);
+                  const match = getStateByCode(val);
+                  if (match) {
+                    setField("state", match.name);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Code" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map((s) => (
+                    <SelectItem key={s.code} value={s.code}>
+                      {s.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-end justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-1.5 h-16">
               <div className="space-y-0.5">
@@ -898,19 +1026,52 @@ export function InvoiceForm(props: {
             </div>
             <div className="space-y-2">
               <Label>Billing State</Label>
-              <Input
-                value={invoice.client.state}
-                onChange={(e) => setClientField("state", e.target.value)}
-                placeholder="State"
-              />
+              <Select
+                value={selectedClientStateName}
+                onValueChange={(val) => {
+                  const found = INDIAN_STATES.find((s) => s.name === val);
+                  if (found) {
+                    setClientField("state", found.name);
+                    setClientField("stateCode", found.code);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select State" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map((s) => (
+                    <SelectItem key={s.code} value={s.name}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Billing State Code</Label>
-              <Input
-                value={invoice.client.stateCode}
-                onChange={(e) => setClientField("stateCode", e.target.value)}
-                placeholder="e.g. 27"
-              />
+              <Select
+                value={selectedClientStateCode}
+                onValueChange={(val) => {
+                  if (!val) return;
+                  setClientField("stateCode", val);
+                  const match = getStateByCode(val);
+                  if (match) {
+                    setClientField("state", match.name);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Code" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map((s) => (
+                    <SelectItem key={s.code} value={s.code}>
+                      {s.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-3 md:col-span-2">

@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Lock, Mail, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 import { signIn } from "@/app/actions/auth";
-import { VideoBackground } from "@/components/ui/login-form";
 
 export default function LoginClientPage() {
   const [email, setEmail] = useState("");
@@ -31,32 +30,48 @@ export default function LoginClientPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-4 overflow-hidden select-none">
-      {/* Premium topographic video background */}
-      <VideoBackground />
+    <div className="relative flex min-h-screen items-center justify-center px-4 overflow-hidden select-none bg-slate-950">
+      {/* Background Image from public folder */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/sl_122221_47450_06.jpg"
+        alt="Background"
+        className="absolute inset-0 h-full w-full object-cover object-center"
+      />
+      {/* Subtle overlay for optimal contrast */}
+      <div className="absolute inset-0 bg-slate-950/30" />
 
-      <div className="relative w-full max-w-md p-8 space-y-6 bg-neutral-900/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl z-10">
-        <div className="flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/95 border border-white/10 shadow-md p-2 overflow-hidden">
+      {/* Liquid Glass Login Box */}
+      <div className="relative w-full max-w-md p-8 sm:p-9 space-y-8 liquid-glass-card rounded-3xl z-10 overflow-hidden transition-all duration-500">
+        {/* Specular Liquid Light Sheen Overlay */}
+        <div className="absolute -top-[50%] -left-[50%] w-[200%] h-[200%] bg-gradient-to-br from-white/20 via-white/5 to-transparent pointer-events-none rounded-full transform -rotate-12 blur-[1px]" />
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+
+        <div className="relative flex flex-col items-center text-center z-10">
+          <div className="flex justify-center items-center h-16 mb-1">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/RKE logo.png" alt="RKE Logo" className="h-full w-full object-contain" />
+            <img 
+              src="/RKE logo.png" 
+              alt="RKE Logo" 
+              className="h-full w-auto max-w-[200px] object-contain filter invert brightness-200 drop-shadow-[0_2px_12px_rgba(255,255,255,0.4)]" 
+            />
           </div>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-white font-sans">
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-white font-sans drop-shadow-sm">
             Welcome back
           </h1>
-          <p className="mt-2 text-sm text-neutral-300">
-            Sign in to manage your RKE accounts & billing
+          <p className="mt-2 text-sm text-slate-300/80 font-normal">
+            Sign in to manage your RKE accounts &amp; billing
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="relative space-y-7 z-10">
           {/* Email Input with Animated Label */}
           <div className="relative z-0">
             <input
               type="email"
               id="floating_email"
-              className="block py-2.5 px-0 w-full text-sm text-white bg-transparent border-0 border-b-2 border-neutral-400 appearance-none focus:outline-none focus:ring-0 focus:border-blue-500 peer disabled:opacity-50"
-              placeholder=" " 
+              className="block py-3 px-4 w-full text-sm text-white bg-sky-950/40 rounded-xl border border-sky-200/20 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-300/80 peer disabled:opacity-50 font-medium transition-all duration-300 shadow-inner"
+              placeholder=" "
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -65,7 +80,7 @@ export default function LoginClientPage() {
             />
             <label
               htmlFor="floating_email"
-              className="absolute text-sm text-neutral-300 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-blue-400 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6 flex items-center"
+              className="absolute text-sm text-slate-300/70 font-normal duration-300 transform -translate-y-7 scale-75 top-3 left-4 origin-[0] peer-focus:text-blue-300 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-7 flex items-center pointer-events-none"
             >
               <Mail className="inline-block mr-2 h-4 w-4" />
               Email Address
@@ -77,7 +92,7 @@ export default function LoginClientPage() {
             <input
               type={showPassword ? "text" : "password"}
               id="floating_password"
-              className="block py-2.5 pl-0 pr-10 w-full text-sm text-white bg-transparent border-0 border-b-2 border-neutral-400 appearance-none focus:outline-none focus:ring-0 focus:border-blue-500 peer disabled:opacity-50"
+              className="block py-3 pl-4 pr-11 w-full text-sm text-white bg-sky-950/40 rounded-xl border border-sky-200/20 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-300/80 peer disabled:opacity-50 font-medium transition-all duration-300 shadow-inner"
               placeholder=" "
               required
               value={password}
@@ -87,7 +102,7 @@ export default function LoginClientPage() {
             />
             <label
               htmlFor="floating_password"
-              className="absolute text-sm text-neutral-300 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-blue-400 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6 flex items-center"
+              className="absolute text-sm text-slate-300/70 font-normal duration-300 transform -translate-y-7 scale-75 top-3 left-4 origin-[0] peer-focus:text-blue-300 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-7 flex items-center pointer-events-none"
             >
               <Lock className="inline-block mr-2 h-4 w-4" />
               Password
@@ -95,7 +110,7 @@ export default function LoginClientPage() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-0 top-3 text-neutral-400 hover:text-white focus:outline-none cursor-pointer"
+              className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white focus:outline-none cursor-pointer transition-colors"
               disabled={isPending}
             >
               {showPassword ? (
@@ -105,14 +120,15 @@ export default function LoginClientPage() {
               )}
             </button>
           </div>
-          
+
           <button
             type="submit"
             disabled={isPending}
-            className="group w-full flex items-center justify-center py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 rounded-lg text-white font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-900 focus:ring-blue-500 transition-all duration-300 cursor-pointer"
+            className="group relative overflow-hidden w-full flex items-center justify-center py-3.5 px-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.99] disabled:opacity-50 rounded-xl text-white font-semibold liquid-glass-button focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-blue-400 transition-all duration-300 cursor-pointer"
           >
+            <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
             {isPending ? (
-              <span className="flex items-center justify-center gap-2">
+              <span className="relative flex items-center justify-center gap-2">
                 <svg className="h-4 w-4 animate-spin text-current" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -120,7 +136,7 @@ export default function LoginClientPage() {
                 Signing In...
               </span>
             ) : (
-              <span className="flex items-center justify-center gap-2">
+              <span className="relative flex items-center justify-center gap-2">
                 Sign In <ArrowRight className="ml-2 h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
               </span>
             )}
@@ -130,3 +146,4 @@ export default function LoginClientPage() {
     </div>
   );
 }
+

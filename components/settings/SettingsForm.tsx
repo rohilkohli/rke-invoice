@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+import { GDriveSettingsCard } from "@/components/settings/GDriveSettingsCard";
+
 const LOCAL_SIGNATURE_KEY = "rke_invoice_signature_v1";
 type SettingsActionInput = Parameters<typeof updateCompanySettings>[0];
 
@@ -32,6 +34,7 @@ export type CompanySettingsFormData = {
   defaultSgstRate: number;
   defaultIgstRate: number;
   termsAndConditions?: string | null;
+  gdriveWebhookUrl?: string | null;
 };
 
 async function fileToDataUrl(file: File) {
@@ -92,6 +95,9 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
           {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
+
+      {/* Google Drive Integration */}
+      <GDriveSettingsCard initialWebhookUrl={form.gdriveWebhookUrl} />
 
       {/* Company Profile */}
       <div className={sectionClass}>

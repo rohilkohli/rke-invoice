@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { InvoiceEditor } from "@/components/invoice/InvoiceEditor";
 import type { InvoiceFormData } from "@/components/invoice/types";
 import { getOrCreateCompanySettings } from "@/lib/bootstrap";
+import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -93,7 +94,7 @@ export default async function InvoiceByIdPage(props: {
         accountNo: company.accountNo,
         ifsc: company.ifsc,
         upiId: company.upiId,
-        logoUrl: company.logoUrl,
+        logoUrl: resolveLogoDataUrl(company.logoUrl),
         termsAndConditions: company.termsAndConditions,
       }}
     />

@@ -1,6 +1,7 @@
 import { getNextInvoiceNo, getOrCreateCompanySettings, getOrCreateDefaultClient } from "@/lib/bootstrap";
 import type { InvoiceFormData } from "@/components/invoice/types";
 import { InvoiceEditor } from "@/components/invoice/InvoiceEditor";
+import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
 
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
@@ -74,7 +75,7 @@ export default async function NewInvoicePage() {
         accountNo: company.accountNo,
         ifsc: company.ifsc,
         upiId: company.upiId,
-        logoUrl: company.logoUrl,
+        logoUrl: resolveLogoDataUrl(company.logoUrl),
         termsAndConditions: company.termsAndConditions,
       }}
     />

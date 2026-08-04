@@ -32,6 +32,7 @@ export default async function SettingsPage() {
         defaultSgstRate: Number(company.defaultSgstRate),
         defaultIgstRate: Number(company.defaultIgstRate),
         termsAndConditions: company.termsAndConditions,
+        gdriveWebhookUrl: company.gdriveWebhookUrl,
       }}
     />
   );

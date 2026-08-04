@@ -159,15 +159,13 @@ Total Amount: ₹${totalAmount}`;
       {showPreview && (
         <div className="hidden lg:block">
           <div className="sticky top-20">
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-2 flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs font-medium text-muted-foreground">Live Preview</span>
             </div>
-            <ScrollArea className="h-[calc(100vh-10rem)] rounded-xl border border-border bg-white dark:bg-neutral-950 shadow-sm">
-              <div className="p-4">
-                <InvoicePreview company={props.company} />
-              </div>
-            </ScrollArea>
+            <div className="rounded-xl border border-border bg-slate-200/60 dark:bg-neutral-950 p-2 shadow-sm">
+              <InvoicePreview company={props.company} qrDataUrl={qrDataUrl} />
+            </div>
           </div>
         </div>
       )}
