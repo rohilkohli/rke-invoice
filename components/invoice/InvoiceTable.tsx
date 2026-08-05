@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/table";
 
 import { useInvoiceStore } from "./useInvoiceStore";
-import { cn } from "@/lib/utils";
 
 function DecimalInput({
   value,
@@ -34,6 +33,7 @@ function DecimalInput({
 
   useEffect(() => {
     const parsed = parseFloat(raw);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing external prop to local state
     if (parsed !== value) setRaw(value === 0 ? "" : String(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);

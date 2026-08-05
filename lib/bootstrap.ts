@@ -44,22 +44,23 @@ export async function getNextInvoiceNo(userId: number, params?: { invoicePrefix?
   const settings = await getOrCreateCompanySettings(userId);
   const prefix = (params?.invoicePrefix ?? settings.invoicePrefix ?? "").trim();
 
-  const candidates = await prisma.invoice.findMany({
+  // Use findFirst ordered by id desc instead of fetching up to 5,000 rows.
+  // Invoices are always created in sequential order, so the latest id
+  // has the highest sequence number.
+  const latest = await prisma.invoice.findFirst({
     where: {
       userId,
       ...(prefix ? { invoiceNo: { startsWith: prefix } } : {}),
     },
     select: { invoiceNo: true },
     orderBy: { id: "desc" },
-    take: 5000,
   });
 
   let maxSeq = 0;
-  for (const row of candidates) {
-    const invoiceNo = row.invoiceNo ?? "";
-    const suffix = prefix ? invoiceNo.slice(prefix.length) : invoiceNo;
+  if (latest?.invoiceNo) {
+    const suffix = prefix ? latest.invoiceNo.slice(prefix.length) : latest.invoiceNo;
     const num = Number.parseInt(suffix.replace(/[^\d]/g, ""), 10);
-    if (Number.isFinite(num) && num > maxSeq) maxSeq = num;
+    if (Number.isFinite(num)) maxSeq = num;
   }
 
   const next = maxSeq + 1;

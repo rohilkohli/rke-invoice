@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Lock, Mail, ArrowRight, Eye, EyeOff } from "lucide-react";
 
@@ -11,6 +11,11 @@ export default function LoginClientPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Clear any leftover signature from a previous user session
+  useEffect(() => {
+    localStorage.removeItem("rke_invoice_signature_v1");
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

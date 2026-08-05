@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { createInvoice, updateInvoice } from "@/app/actions/invoices";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { PdfActions } from "@/components/pdf/PdfActions";
 import { UPIQRCode } from "@/components/qr/UPIQRCode";
 import { XlsxActions } from "@/components/export/XlsxActions";

@@ -46,6 +46,7 @@ export function InvoicePreview(props: {
     setZoom((prev) => Math.max(50, Math.round(prev / 1.15)));
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Reserved for future zoom reset button
   const handleResetZoom = useCallback(() => {
     setZoom(100);
   }, []);
@@ -114,6 +115,7 @@ export function InvoicePreview(props: {
 
   useEffect(() => {
     let isCancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Loading state for async PDF generation
     setIsGenerating(true);
 
     const generatePdf = async () => {

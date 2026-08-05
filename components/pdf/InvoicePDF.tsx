@@ -1,12 +1,9 @@
 import {
   Document,
   Font,
-  G,
   Image as PdfImage,
   Page,
   StyleSheet,
-  Svg,
-  Text as SvgText,
   Text,
   View,
 } from "@react-pdf/renderer";
@@ -829,12 +826,23 @@ export function InvoicePDF(props: {
           <View style={styles.footerCol1}>
             <Text style={styles.bold}>Terms & Conditions / Declaration:</Text>
             <View style={styles.bulletList}>
-              <Text style={styles.bulletItem}>1. Goods once sold will not be taken back or exchanged without approval.</Text>
-              <Text style={styles.bulletItem}>2. Subject to Agra Jurisdiction only.</Text>
-              <Text style={styles.bulletItem}>3. Our responsibility ceases when goods leave our godown.</Text>
-              <Text style={styles.bulletItem}>4. E.&O.E.</Text>
-              <Text style={styles.bulletItem}>5. As per the rule, 100% GST for an enforcement agency is to be deposited by the service receiver.</Text>
-              <Text style={styles.bulletItem}>6. The MSMED Act 2006 specifies 45-day credit period for the recipient of goods/services to pay the MSME supplier.</Text>
+              {(() => {
+                const defaultTerms = [
+                  "1. Goods once sold will not be taken back or exchanged without approval.",
+                  "2. Subject to Agra Jurisdiction only.",
+                  "3. Our responsibility ceases when goods leave our godown.",
+                  "4. E.&O.E.",
+                  "5. As per the rule, 100% GST for an enforcement agency is to be deposited by the service receiver.",
+                  "6. The MSMED Act 2006 specifies 45-day credit period for the recipient of goods/services to pay the MSME supplier.",
+                ];
+                const terms =
+                  props.company.termsAndConditions?.trim()
+                    ? props.company.termsAndConditions.split("\n").filter((l) => l.trim())
+                    : defaultTerms;
+                return terms.map((line, idx) => (
+                  <Text key={idx} style={styles.bulletItem}>{line}</Text>
+                ));
+              })()}
             </View>
             <View style={{ marginTop: 4, paddingTop: 3, borderTopWidth: 0.5, borderTopColor: "#CCCCCC" }}>
               <Text style={{ fontSize: 6.5 }}>

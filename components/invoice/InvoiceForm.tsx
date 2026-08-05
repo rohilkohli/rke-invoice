@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Save, ClipboardList, Building2, Truck, Percent, Sparkles, ChevronLeft, ChevronRight, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { scanInvoiceAction } from "@/app/actions/ocr";
@@ -79,10 +79,23 @@ export function InvoiceForm(props: {
 
   const [scanning, setScanning] = useState(false);
   const [scanMode, setScanMode] = useState<"flash" | "pro">("flash");
-  const [differentShipping, setDifferentShipping] = useState(() => {
+  const [differentShipping, setDifferentShipping] = useState(false);
+
+  // Auto-detect different shipping address only once when real invoice data loads.
+  // After initialization, defer entirely to the user's manual toggle.
+  const hasInitializedShipping = useRef(false);
+  useEffect(() => {
+    if (hasInitializedShipping.current) return;
     const c = invoice.client;
-    return !!c.shipToName || !!c.shipToAddress;
-  });
+    // Only run detection once we have meaningful data (name is non-empty)
+    if (!c.name) return;
+    hasInitializedShipping.current = true;
+    const isDifferent =
+      (!!c.shipToName && c.shipToName !== c.name) ||
+      (!!c.shipToAddress && c.shipToAddress !== c.address);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- One-time init guarded by ref
+    setDifferentShipping(isDifferent);
+  }, [invoice.client]);
 
   const [isMobile, setIsMobile] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -131,6 +144,14 @@ export function InvoiceForm(props: {
   const handleScanInvoice = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reject oversized files before triggering any loading state
+    const MAX_FILE_SIZE_MB = 10;
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`File too large. Please upload a file under ${MAX_FILE_SIZE_MB}MB.`);
+      e.target.value = "";
+      return;
+    }
 
     setScanning(true);
     const modelLabel = scanMode === "pro" ? "Gemini Pro (High Accuracy)" : "Gemini Flash (Fast Mode)";
@@ -234,6 +255,28 @@ export function InvoiceForm(props: {
   const amountInWords = amountInWordsINR(totals.grandTotal);
 
   const cardClass = "rounded-xl border border-border bg-card shadow-sm overflow-hidden";
+
+  /** Validate required fields for each mobile wizard step */
+  const validateStep = (step: number): string | null => {
+    switch (step) {
+      case 1:
+        if (!invoice.invoiceNo.trim()) return "Invoice number is required (Step 1).";
+        if (!invoice.invoiceDate.trim()) return "Invoice date is required (Step 1).";
+        return null;
+      case 2:
+        if (!invoice.client.name.trim()) return "Client name is required (Step 2).";
+        if (!invoice.client.gstin.trim()) return "Client GSTIN is required (Step 2).";
+        if (!invoice.client.address.trim()) return "Client address is required (Step 2).";
+        if (!invoice.client.state?.trim()) return "Client state is required (Step 2).";
+        return null;
+      case 3:
+        if (!invoice.lineItems.some((li) => li.description.trim() && li.rate > 0))
+          return "At least one line item with a description and rate is required (Step 3).";
+        return null;
+      default:
+        return null;
+    }
+  };
 
   if (isMobile) {
     const steps = [
@@ -759,7 +802,14 @@ export function InvoiceForm(props: {
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setCurrentStep((s) => Math.min(4, s + 1))}
+                onClick={() => {
+                  const error = validateStep(currentStep);
+                  if (error) {
+                    toast.error(error);
+                    return;
+                  }
+                  setCurrentStep((s) => Math.min(4, s + 1));
+                }}
               >
                 Next
                 <ChevronRight className="ml-1 h-4 w-4" />

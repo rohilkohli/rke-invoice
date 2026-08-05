@@ -23,8 +23,20 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const [company, invoices] = await Promise.all([
+  const now = new Date();
+  const monthStart = startOfMonth(now);
+
+  const [company, monthlyInvoices, invoices] = await Promise.all([
     getOrCreateCompanySettings(user.id),
+    // Metrics query: only current-month invoices, no take limit, lightweight select
+    prisma.invoice.findMany({
+      where: {
+        userId: user.id,
+        invoiceDate: { gte: monthStart },
+      },
+      select: { grandTotal: true, status: true },
+    }),
+    // Table query: most recent 100 invoices for display
     prisma.invoice.findMany({
       where: { userId: user.id },
       include: { client: true },
@@ -33,15 +45,11 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const now = new Date();
-  const monthStart = startOfMonth(now);
-
-  const thisMonth = invoices.filter((i) => i.invoiceDate >= monthStart);
-  const totalInvoiced = thisMonth.reduce(
+  const totalInvoiced = monthlyInvoices.reduce(
     (sum, i) => sum + Number(i.grandTotal),
     0,
   );
-  const totalPaid = thisMonth
+  const totalPaid = monthlyInvoices
     .filter((i) => i.status === "PAID")
     .reduce((sum, i) => sum + Number(i.grandTotal), 0);
   const pending = totalInvoiced - totalPaid;
