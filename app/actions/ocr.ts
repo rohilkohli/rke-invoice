@@ -233,7 +233,34 @@ export async function scanInvoiceAction(
       };
     }
 
-    // 1️⃣ Try Gemini first (gemini-2.0-flash — 1,500 req/day free)
+    const isPdf = mimeType === "application/pdf";
+
+    // ─── PDF path: only Gemini supports application/pdf natively ────────────
+    // OpenAI and Mistral only accept image/* MIME types.
+    if (isPdf) {
+      if (!geminiKey) {
+        return {
+          success: false,
+          error: "PDF scanning requires a Gemini API key (GEMINI_API_KEY). " +
+                 "Other providers (OpenAI, Mistral) only accept image files. " +
+                 "Please upload a JPEG or PNG screenshot of the invoice instead."
+        };
+      }
+      console.log("[OCR] PDF detected — using Gemini only.");
+      const result = await scanWithGemini(base64Clean, mimeType, geminiKey);
+      if (result.success) { console.log("[OCR] Gemini (PDF) succeeded."); return result; }
+      console.warn("[OCR] Gemini (PDF) failed:", result.error);
+      // Gemini failed on PDF — give the user a clear next step
+      return {
+        success: false,
+        error: "Gemini could not process your PDF right now (quota or error). " +
+               "Try uploading a JPEG or PNG screenshot of the invoice — " +
+               "those can be processed by OpenAI or Mistral as a fallback."
+      };
+    }
+
+    // ─── Image path: try all providers in order ──────────────────────────────
+    // 1️⃣ Gemini (gemini-2.0-flash — 1,500 req/day free)
     if (geminiKey) {
       console.log("[OCR] Trying Gemini gemini-2.0-flash...");
       const result = await scanWithGemini(base64Clean, mimeType, geminiKey);
@@ -241,7 +268,7 @@ export async function scanInvoiceAction(
       console.warn("[OCR] Gemini failed:", result.error);
     }
 
-    // 2️⃣ Fallback: OpenAI gpt-4o-mini (paid credits required)
+    // 2️⃣ OpenAI gpt-4o-mini (paid credits required)
     if (openaiKey) {
       console.log("[OCR] Trying OpenAI gpt-4o-mini...");
       const result = await scanWithOpenAI(base64Clean, mimeType, openaiKey);
@@ -249,7 +276,7 @@ export async function scanInvoiceAction(
       console.warn("[OCR] OpenAI failed:", result.error);
     }
 
-    // 3️⃣ Fallback: Mistral pixtral-12b (free tier — no credit card needed)
+    // 3️⃣ Mistral pixtral-12b (free tier — no credit card needed)
     if (mistralKey) {
       console.log("[OCR] Trying Mistral pixtral-12b...");
       const result = await scanWithMistral(base64Clean, mimeType, mistralKey);
