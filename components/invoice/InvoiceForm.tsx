@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Save, ClipboardList, Building2, Truck, Percent, Sparkles, ChevronLeft, ChevronRight, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { scanInvoiceAction } from "@/app/actions/ocr";
@@ -12,6 +12,7 @@ import {
   getTaxMode,
 } from "@/lib/calculations";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
+import { INDIAN_STATES, getStateByCode } from "@/lib/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,12 +49,53 @@ export function InvoiceForm(props: {
   const setClientField = useInvoiceStore((s) => s.setClientField);
   const setInvoice = useInvoiceStore((s) => s.setInvoice);
 
+  const selectedStateName =
+    INDIAN_STATES.find(
+      (s) =>
+        s.name.toLowerCase() === invoice.state?.trim().toLowerCase() ||
+        s.code === invoice.stateCode?.trim().padStart(2, "0")
+    )?.name || invoice.state || "";
+
+  const selectedStateCode =
+    INDIAN_STATES.find(
+      (s) =>
+        s.code === invoice.stateCode?.trim().padStart(2, "0") ||
+        s.name.toLowerCase() === invoice.state?.trim().toLowerCase()
+    )?.code || invoice.stateCode || "";
+
+  const selectedClientStateName =
+    INDIAN_STATES.find(
+      (s) =>
+        s.name.toLowerCase() === invoice.client.state?.trim().toLowerCase() ||
+        s.code === invoice.client.stateCode?.trim().padStart(2, "0")
+    )?.name || invoice.client.state || "";
+
+  const selectedClientStateCode =
+    INDIAN_STATES.find(
+      (s) =>
+        s.code === invoice.client.stateCode?.trim().padStart(2, "0") ||
+        s.name.toLowerCase() === invoice.client.state?.trim().toLowerCase()
+    )?.code || invoice.client.stateCode || "";
+
   const [scanning, setScanning] = useState(false);
   const [scanMode, setScanMode] = useState<"flash" | "pro">("flash");
-  const [differentShipping, setDifferentShipping] = useState(() => {
+  const [differentShipping, setDifferentShipping] = useState(false);
+
+  // Auto-detect different shipping address only once when real invoice data loads.
+  // After initialization, defer entirely to the user's manual toggle.
+  const hasInitializedShipping = useRef(false);
+  useEffect(() => {
+    if (hasInitializedShipping.current) return;
     const c = invoice.client;
-    return !!c.shipToName || !!c.shipToAddress;
-  });
+    // Only run detection once we have meaningful data (name is non-empty)
+    if (!c.name) return;
+    hasInitializedShipping.current = true;
+    const isDifferent =
+      (!!c.shipToName && c.shipToName !== c.name) ||
+      (!!c.shipToAddress && c.shipToAddress !== c.address);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- One-time init guarded by ref
+    setDifferentShipping(isDifferent);
+  }, [invoice.client]);
 
   const [isMobile, setIsMobile] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -102,6 +144,14 @@ export function InvoiceForm(props: {
   const handleScanInvoice = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reject oversized files before triggering any loading state
+    const MAX_FILE_SIZE_MB = 10;
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`File too large. Please upload a file under ${MAX_FILE_SIZE_MB}MB.`);
+      e.target.value = "";
+      return;
+    }
 
     setScanning(true);
     const modelLabel = scanMode === "pro" ? "Gemini Pro (High Accuracy)" : "Gemini Flash (Fast Mode)";
@@ -205,6 +255,28 @@ export function InvoiceForm(props: {
   const amountInWords = amountInWordsINR(totals.grandTotal);
 
   const cardClass = "rounded-xl border border-border bg-card shadow-sm overflow-hidden";
+
+  /** Validate required fields for each mobile wizard step */
+  const validateStep = (step: number): string | null => {
+    switch (step) {
+      case 1:
+        if (!invoice.invoiceNo.trim()) return "Invoice number is required (Step 1).";
+        if (!invoice.invoiceDate.trim()) return "Invoice date is required (Step 1).";
+        return null;
+      case 2:
+        if (!invoice.client.name.trim()) return "Client name is required (Step 2).";
+        if (!invoice.client.gstin.trim()) return "Client GSTIN is required (Step 2).";
+        if (!invoice.client.address.trim()) return "Client address is required (Step 2).";
+        if (!invoice.client.state?.trim()) return "Client state is required (Step 2).";
+        return null;
+      case 3:
+        if (!invoice.lineItems.some((li) => li.description.trim() && li.rate > 0))
+          return "At least one line item with a description and rate is required (Step 3).";
+        return null;
+      default:
+        return null;
+    }
+  };
 
   if (isMobile) {
     const steps = [
@@ -370,19 +442,52 @@ export function InvoiceForm(props: {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>State of Supply</Label>
-                  <Input
-                    value={invoice.state}
-                    onChange={(e) => setField("state", e.target.value)}
-                    placeholder="State"
-                  />
+                  <Select
+                    value={selectedStateName}
+                    onValueChange={(val) => {
+                      const found = INDIAN_STATES.find((s) => s.name === val);
+                      if (found) {
+                        setField("state", found.name);
+                        setField("stateCode", found.code);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((s) => (
+                        <SelectItem key={s.code} value={s.name}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>State Code</Label>
-                  <Input
-                    value={invoice.stateCode}
-                    onChange={(e) => setField("stateCode", e.target.value)}
-                    placeholder="e.g. 27"
-                  />
+                  <Select
+                    value={selectedStateCode}
+                    onValueChange={(val) => {
+                      if (!val) return;
+                      setField("stateCode", val);
+                      const match = getStateByCode(val);
+                      if (match) {
+                        setField("state", match.name);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((s) => (
+                        <SelectItem key={s.code} value={s.code}>
+                          {s.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -410,6 +515,50 @@ export function InvoiceForm(props: {
                   onChange={(e) => setField("placeOfSupply", e.target.value)}
                   placeholder="Place of supply"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Reference No.</Label>
+                  <Input
+                    value={invoice.referenceNo ?? ""}
+                    onChange={(e) => setField("referenceNo", e.target.value)}
+                    placeholder="Ref No."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Reference Date</Label>
+                  <Input
+                    type="date"
+                    value={invoice.referenceDate ?? ""}
+                    onChange={(e) => setField("referenceDate", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Buyer&apos;s Order No.</Label>
+                <Input
+                  value={invoice.buyerOrderNo ?? ""}
+                  onChange={(e) => setField("buyerOrderNo", e.target.value)}
+                  placeholder="e.g. PO-2026-001"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Payment Terms</Label>
+                  <Input
+                    value={invoice.paymentTerms ?? ""}
+                    onChange={(e) => setField("paymentTerms", e.target.value)}
+                    placeholder="e.g. 30 Days"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Terms of Delivery</Label>
+                  <Input
+                    value={invoice.termsOfDelivery ?? ""}
+                    onChange={(e) => setField("termsOfDelivery", e.target.value)}
+                    placeholder="e.g. FOB / CIF"
+                  />
+                </div>
               </div>
               <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-3">
                 <div className="space-y-0.5">
@@ -463,19 +612,52 @@ export function InvoiceForm(props: {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Billing State</Label>
-                  <Input
-                    value={invoice.client.state}
-                    onChange={(e) => setClientField("state", e.target.value)}
-                    placeholder="State"
-                  />
+                  <Select
+                    value={selectedClientStateName}
+                    onValueChange={(val) => {
+                      const found = INDIAN_STATES.find((s) => s.name === val);
+                      if (found) {
+                        setClientField("state", found.name);
+                        setClientField("stateCode", found.code);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((s) => (
+                        <SelectItem key={s.code} value={s.name}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Billing State Code</Label>
-                  <Input
-                    value={invoice.client.stateCode}
-                    onChange={(e) => setClientField("stateCode", e.target.value)}
-                    placeholder="e.g. 27"
-                  />
+                  <Select
+                    value={selectedClientStateCode}
+                    onValueChange={(val) => {
+                      if (!val) return;
+                      setClientField("stateCode", val);
+                      const match = getStateByCode(val);
+                      if (match) {
+                        setClientField("state", match.name);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((s) => (
+                        <SelectItem key={s.code} value={s.code}>
+                          {s.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -508,6 +690,32 @@ export function InvoiceForm(props: {
                       onChange={(e) => setClientField("shipToAddress", e.target.value)}
                       placeholder="Ship to address"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Consignee GSTIN</Label>
+                    <Input
+                      value={invoice.client.shipToGstin ?? ""}
+                      onChange={(e) => setClientField("shipToGstin", e.target.value)}
+                      placeholder="Consignee GSTIN"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Consignee State</Label>
+                      <Input
+                        value={invoice.client.shipToState ?? ""}
+                        onChange={(e) => setClientField("shipToState", e.target.value)}
+                        placeholder="e.g. Maharashtra"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Consignee State Code</Label>
+                      <Input
+                        value={invoice.client.shipToStateCode ?? ""}
+                        onChange={(e) => setClientField("shipToStateCode", e.target.value)}
+                        placeholder="e.g. 27"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -664,7 +872,14 @@ export function InvoiceForm(props: {
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setCurrentStep((s) => Math.min(4, s + 1))}
+                onClick={() => {
+                  const error = validateStep(currentStep);
+                  if (error) {
+                    toast.error(error);
+                    return;
+                  }
+                  setCurrentStep((s) => Math.min(4, s + 1));
+                }}
               >
                 Next
                 <ChevronRight className="ml-1 h-4 w-4" />
@@ -788,6 +1003,46 @@ export function InvoiceForm(props: {
               />
             </div>
             <div className="space-y-2">
+              <Label>Reference No.</Label>
+              <Input
+                value={invoice.referenceNo ?? ""}
+                onChange={(e) => setField("referenceNo", e.target.value)}
+                placeholder="Ref No."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Reference Date</Label>
+              <Input
+                type="date"
+                value={invoice.referenceDate ?? ""}
+                onChange={(e) => setField("referenceDate", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Buyer&apos;s Order No.</Label>
+              <Input
+                value={invoice.buyerOrderNo ?? ""}
+                onChange={(e) => setField("buyerOrderNo", e.target.value)}
+                placeholder="e.g. PO-2026-001"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Terms</Label>
+              <Input
+                value={invoice.paymentTerms ?? ""}
+                onChange={(e) => setField("paymentTerms", e.target.value)}
+                placeholder="e.g. 30 Days"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Terms of Delivery</Label>
+              <Input
+                value={invoice.termsOfDelivery ?? ""}
+                onChange={(e) => setField("termsOfDelivery", e.target.value)}
+                placeholder="e.g. FOB / CIF"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Bill Period Start</Label>
               <Input
                 type="date"
@@ -838,19 +1093,52 @@ export function InvoiceForm(props: {
             </div>
             <div className="space-y-2">
               <Label>State of Supply</Label>
-              <Input
-                value={invoice.state}
-                onChange={(e) => setField("state", e.target.value)}
-                placeholder="State"
-              />
+              <Select
+                value={selectedStateName}
+                onValueChange={(val) => {
+                  const found = INDIAN_STATES.find((s) => s.name === val);
+                  if (found) {
+                    setField("state", found.name);
+                    setField("stateCode", found.code);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select State of Supply" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map((s) => (
+                    <SelectItem key={s.code} value={s.name}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>State Code</Label>
-              <Input
-                value={invoice.stateCode}
-                onChange={(e) => setField("stateCode", e.target.value)}
-                placeholder="e.g. 27"
-              />
+              <Select
+                value={selectedStateCode}
+                onValueChange={(val) => {
+                  if (!val) return;
+                  setField("stateCode", val);
+                  const match = getStateByCode(val);
+                  if (match) {
+                    setField("state", match.name);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Code" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map((s) => (
+                    <SelectItem key={s.code} value={s.code}>
+                      {s.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-end justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-1.5 h-16">
               <div className="space-y-0.5">
@@ -898,19 +1186,52 @@ export function InvoiceForm(props: {
             </div>
             <div className="space-y-2">
               <Label>Billing State</Label>
-              <Input
-                value={invoice.client.state}
-                onChange={(e) => setClientField("state", e.target.value)}
-                placeholder="State"
-              />
+              <Select
+                value={selectedClientStateName}
+                onValueChange={(val) => {
+                  const found = INDIAN_STATES.find((s) => s.name === val);
+                  if (found) {
+                    setClientField("state", found.name);
+                    setClientField("stateCode", found.code);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select State" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map((s) => (
+                    <SelectItem key={s.code} value={s.name}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Billing State Code</Label>
-              <Input
-                value={invoice.client.stateCode}
-                onChange={(e) => setClientField("stateCode", e.target.value)}
-                placeholder="e.g. 27"
-              />
+              <Select
+                value={selectedClientStateCode}
+                onValueChange={(val) => {
+                  if (!val) return;
+                  setClientField("stateCode", val);
+                  const match = getStateByCode(val);
+                  if (match) {
+                    setClientField("state", match.name);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Code" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES.map((s) => (
+                    <SelectItem key={s.code} value={s.code}>
+                      {s.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-3 md:col-span-2">
@@ -943,6 +1264,30 @@ export function InvoiceForm(props: {
                     value={invoice.client.shipToAddress ?? ""}
                     onChange={(e) => setClientField("shipToAddress", e.target.value)}
                     placeholder="Ship to address"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Consignee GSTIN</Label>
+                  <Input
+                    value={invoice.client.shipToGstin ?? ""}
+                    onChange={(e) => setClientField("shipToGstin", e.target.value)}
+                    placeholder="Consignee GSTIN"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Consignee State</Label>
+                  <Input
+                    value={invoice.client.shipToState ?? ""}
+                    onChange={(e) => setClientField("shipToState", e.target.value)}
+                    placeholder="e.g. Maharashtra"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Consignee State Code</Label>
+                  <Input
+                    value={invoice.client.shipToStateCode ?? ""}
+                    onChange={(e) => setClientField("shipToStateCode", e.target.value)}
+                    placeholder="e.g. 27"
                   />
                 </div>
               </>

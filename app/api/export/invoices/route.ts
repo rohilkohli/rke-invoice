@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
 import { getOrCreateCompanySettings } from "@/lib/bootstrap";
+import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
 import { getSessionUser } from "@/lib/auth";
 import { hasAllRequestedIdsAuthorized } from "@/lib/authorization";
 
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
       accountNo: company.accountNo,
       ifsc: company.ifsc,
       upiId: company.upiId,
-      logoUrl: company.logoUrl,
+      logoUrl: resolveLogoDataUrl(company.logoUrl),
       termsAndConditions: company.termsAndConditions,
     },
     invoices: invoices.map((inv) => ({

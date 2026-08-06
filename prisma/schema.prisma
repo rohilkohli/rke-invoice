@@ -25,6 +25,11 @@ model Invoice {
   invoiceNo       String        @unique
   invoiceDate     DateTime
   poNo            String?
+  referenceNo      String?
+  referenceDate    String?
+  buyerOrderNo     String?
+  paymentTerms     String?
+  termsOfDelivery  String?
 
   billPeriodStart DateTime?
   billPeriodEnd   DateTime?
@@ -82,6 +87,9 @@ model Client {
   stateCode     String
   shipToName    String?
   shipToAddress String?
+  shipToGstin   String?
+  shipToState   String?
+  shipToStateCode String?
 
   invoices      Invoice[]
   payments      Payment[]
@@ -135,6 +143,10 @@ model CompanySettings {
   accountNo        String?
   ifsc             String?
   upiId            String?
+  tagline          String?
+  accountType      String?  @default("Current")
+  stateCode        String?
+  state            String?
 
   logoUrl          String?
   signatureUrl     String?
@@ -145,6 +157,8 @@ model CompanySettings {
   defaultIgstRate  Decimal  @default(18)
 
   termsAndConditions String?
+
+  gdriveWebhookUrl   String?
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

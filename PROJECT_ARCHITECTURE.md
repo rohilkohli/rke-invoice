@@ -1,6 +1,6 @@
 # RKE GST Invoice Generator — Project Architecture
 
-Welcome to the **RKE GST Invoice Generator** codebase, a premium, offline-first application designed for **M/S Radha Kishan Enterprises** (a heavy engineering equipment rental business). This application is bootstrapped using **Next.js 16 (App Router)** and **React 19**, incorporating modern web design best practices (sleek layouts, system dark/light modes, premium typography, and dynamic micro-interactions).
+Welcome to the **RKE GST Invoice Generator** codebase, a premium, cloud-hosted application designed for **M/S Radha Kishan Enterprises** (a heavy engineering equipment rental business). This application is bootstrapped using **Next.js 16 (App Router)** and **React 19**, incorporating modern web design best practices (sleek layouts, system dark/light modes, premium typography, and dynamic micro-interactions).
 
 ---
 
@@ -10,7 +10,7 @@ The application is built on a modern, robust, and highly-performant stack:
 
 - **Core Framework**: [Next.js 16](https://nextjs.org) (App Router, Server Actions, Dynamic Streaming) and [React 19](https://react.dev).
 - **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) with Vanilla CSS custom tokens, providing modern transitions and responsive design.
-- **Database ORM**: [Prisma ORM v6](https://www.prisma.io/) with a lightweight, high-performance [SQLite](https://www.sqlite.org/) local database.
+- **Database ORM**: [Prisma ORM v6](https://www.prisma.io/) with [PostgreSQL](https://www.postgresql.org/) hosted on **Vercel Postgres**.
 - **State Management**: [Zustand](https://github.com/pmndrs/zustand) for fast, reactive client-side store management inside the invoice builder.
 - **Form & Payload Validation**: [Zod](https://zod.dev) schemas enforcing rigorous validation for data safety across API and DB boundaries.
 - **Integrations**:
@@ -67,8 +67,7 @@ rke-invoice/
 │   ├── qr.ts                   # UPI QR code helpers
 │   └── utils.ts                # Dynamic tailwind-merge helper (cn)
 ├── prisma/                     # Database schemas and migrations
-│   ├── dev.db                  # Local SQLite database
-│   └── schema.prisma           # Prisma Database schemas and relationships
+│   └── schema.prisma           # Prisma Database schemas and relationships (PostgreSQL)
 ├── public/                     # Static assets (logos, fallback signatures, icons)
 ├── package.json                # Project dependencies and script runner configurations
 └── tsconfig.json               # TypeScript path mapping and type configurations
@@ -78,7 +77,7 @@ rke-invoice/
 
 ## 🗄️ Database Schema & Models
 
-The SQLite database schema is configured in [schema.prisma](file:///e:/RKE%20software/rke-invoice/prisma/schema.prisma) with five highly integrated tables:
+The PostgreSQL database schema is configured in [schema.prisma](prisma/schema.prisma) with five highly integrated tables:
 
 ```mermaid
 erDiagram
@@ -216,7 +215,8 @@ This URI is rendered as a clean, responsive QR code in the invoice preview, enab
 
 - **Local Running**:
   - Standard server launch: `npm run dev` (starts development environment on [http://localhost:3000](http://localhost:3000)).
-- **Database Migrations**:
-  - Use Prisma to sync scheme adjustments: `npx prisma db push` or `npx prisma migrate dev`.
+- **Database**:
+  - PostgreSQL is hosted on Vercel Postgres. The `DATABASE_URL` is injected via environment variables — never hardcode it.
+  - Use Prisma to sync schema adjustments: `npx prisma db push` or `npx prisma migrate dev`.
 - **Aesthetics & Styling**:
   - Always prefer the established theme configuration. Dark and Light modes should maintain premium readability with high contrast ratios, using harmonized HSL color palettes and smooth dynamic micro-animations.

@@ -1,6 +1,7 @@
 import { getNextInvoiceNo, getOrCreateCompanySettings, getOrCreateDefaultClient } from "@/lib/bootstrap";
 import type { InvoiceFormData } from "@/components/invoice/types";
 import { InvoiceEditor } from "@/components/invoice/InvoiceEditor";
+import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
 
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
@@ -25,6 +26,11 @@ export default async function NewInvoicePage() {
     invoiceNo,
     invoiceDate: today,
     poNo: "",
+    referenceNo: "",
+    referenceDate: "",
+    buyerOrderNo: "",
+    paymentTerms: "",
+    termsOfDelivery: "",
     billPeriodStart: "",
     billPeriodEnd: "",
     state: client.state,
@@ -46,6 +52,9 @@ export default async function NewInvoicePage() {
       stateCode: client.stateCode,
       shipToName: client.shipToName ?? "",
       shipToAddress: client.shipToAddress ?? "",
+      shipToGstin: client.shipToGstin ?? "",
+      shipToState: client.shipToState ?? "",
+      shipToStateCode: client.shipToStateCode ?? "",
     },
     lineItems: [
       {
@@ -74,8 +83,13 @@ export default async function NewInvoicePage() {
         accountNo: company.accountNo,
         ifsc: company.ifsc,
         upiId: company.upiId,
-        logoUrl: company.logoUrl,
+        logoUrl: resolveLogoDataUrl(company.logoUrl),
         termsAndConditions: company.termsAndConditions,
+        tagline: company.tagline,
+        accountType: company.accountType,
+        stateCode: company.stateCode,
+        state: company.state,
+        gdriveWebhookUrl: company.gdriveWebhookUrl,
       }}
     />
   );

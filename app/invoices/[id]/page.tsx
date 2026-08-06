@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { InvoiceEditor } from "@/components/invoice/InvoiceEditor";
 import type { InvoiceFormData } from "@/components/invoice/types";
 import { getOrCreateCompanySettings } from "@/lib/bootstrap";
+import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -40,6 +41,11 @@ export default async function InvoiceByIdPage(props: {
     invoiceNo: invoice.invoiceNo,
     invoiceDate: invoice.invoiceDate.toISOString().slice(0, 10),
     poNo: invoice.poNo ?? "",
+    referenceNo: invoice.referenceNo ?? "",
+    referenceDate: invoice.referenceDate ?? "",
+    buyerOrderNo: invoice.buyerOrderNo ?? "",
+    paymentTerms: invoice.paymentTerms ?? "",
+    termsOfDelivery: invoice.termsOfDelivery ?? "",
     billPeriodStart: invoice.billPeriodStart
       ? invoice.billPeriodStart.toISOString().slice(0, 10)
       : "",
@@ -65,6 +71,9 @@ export default async function InvoiceByIdPage(props: {
       stateCode: invoice.client.stateCode,
       shipToName: invoice.client.shipToName ?? "",
       shipToAddress: invoice.client.shipToAddress ?? "",
+      shipToGstin: invoice.client.shipToGstin ?? "",
+      shipToState: invoice.client.shipToState ?? "",
+      shipToStateCode: invoice.client.shipToStateCode ?? "",
     },
     lineItems: invoice.lineItems.map((li) => ({
       sno: li.sno,
@@ -93,8 +102,13 @@ export default async function InvoiceByIdPage(props: {
         accountNo: company.accountNo,
         ifsc: company.ifsc,
         upiId: company.upiId,
-        logoUrl: company.logoUrl,
+        logoUrl: resolveLogoDataUrl(company.logoUrl),
         termsAndConditions: company.termsAndConditions,
+        tagline: company.tagline,
+        accountType: company.accountType,
+        stateCode: company.stateCode,
+        state: company.state,
+        gdriveWebhookUrl: company.gdriveWebhookUrl,
       }}
     />
   );
