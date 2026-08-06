@@ -4,14 +4,62 @@ import type { InvoiceFormData } from "@/components/invoice/types";
 import { requireSessionUser } from "@/lib/auth";
 
 // ---------------------------------------------------------------------------
-// Shared invoice extraction schema / prompt
+// Prompts
 // ---------------------------------------------------------------------------
+
+// Used by Gemini (field names enforced via responseSchema — prompt is brief)
 const INVOICE_PROMPT = `Extract invoice data from this image and return ONLY a valid JSON object matching the schema. Rules:
 - invoiceDate must be YYYY-MM-DD
 - stateCode: 2-digit string (e.g. "09" UP, "07" Delhi, "06" Haryana, "27" Maharashtra, "29" Karnataka)
 - unit defaults to "Nos" if missing
 - reverseCharge is a boolean
 - Do not include markdown, commentary, or extra keys`.trim();
+
+// Used by OpenAI and Mistral — must spell out exact field names since no responseSchema
+const CHAT_PROMPT = `You are an invoice data extraction assistant.
+Extract data from this invoice image and return ONLY a raw JSON object — no markdown, no explanation.
+
+Use EXACTLY these field names (camelCase):
+{
+  "invoiceNo": "string — the invoice number",
+  "invoiceDate": "string — date in YYYY-MM-DD format",
+  "poNo": "string or null — Purchase Order number if present",
+  "billPeriodStart": "string or null — bill period start in YYYY-MM-DD",
+  "billPeriodEnd": "string or null — bill period end in YYYY-MM-DD",
+  "state": "string — state name of the receiver/client",
+  "stateCode": "string — 2-digit numeric state code (e.g. '27' Maharashtra, '09' UP, '07' Delhi, '06' Haryana, '29' Karnataka)",
+  "transportMode": "string or null — e.g. Road, Rail, Air",
+  "vehicleNo": "string or null — vehicle number if present",
+  "placeOfSupply": "string or null — place of supply state",
+  "reverseCharge": "boolean — true or false",
+  "client": {
+    "name": "string — client company name",
+    "address": "string — full billing address",
+    "gstin": "string — 15-character GSTIN",
+    "state": "string — client state name",
+    "stateCode": "string — 2-digit client state code",
+    "shipToName": "string or null — consignee name if different from client",
+    "shipToAddress": "string or null — shipping address if different"
+  },
+  "lineItems": [
+    {
+      "sno": "integer — serial number starting from 1",
+      "description": "string — item description",
+      "hsnSac": "string or null — HSN/SAC code",
+      "unit": "string — unit of measurement, default 'Nos'",
+      "qty": "number — quantity",
+      "rate": "number — price per unit in INR"
+    }
+  ]
+}
+
+Rules:
+- ALL keys must use camelCase exactly as shown above
+- invoiceDate, billPeriodStart, billPeriodEnd must be YYYY-MM-DD
+- stateCode must be a 2-digit string like "27", not an integer
+- reverseCharge must be a boolean (true/false), not a string
+- Return null for fields not found in the invoice
+- Do NOT include extra keys, markdown, or any surrounding text`.trim();
 
 const RESPONSE_SCHEMA = {
   type: "OBJECT",
@@ -123,7 +171,7 @@ async function scanWithOpenAI(
       {
         role: "user",
         content: [
-          { type: "text", text: INVOICE_PROMPT + "\n\nReturn ONLY the raw JSON — no markdown fences." },
+          { type: "text", text: CHAT_PROMPT },
           { type: "image_url", image_url: { url: dataUrl } }
         ]
       }
@@ -172,7 +220,7 @@ async function scanWithMistral(
       {
         role: "user",
         content: [
-          { type: "text", text: INVOICE_PROMPT + "\n\nReturn ONLY the raw JSON object — no markdown fences, no extra text." },
+          { type: "text", text: CHAT_PROMPT },
           { type: "image_url", image_url: { url: dataUrl } }
         ]
       }
