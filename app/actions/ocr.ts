@@ -20,7 +20,7 @@ export async function scanInvoiceAction(
       .replace(/^data:image\/\w+;base64,/, "")
       .replace(/^data:application\/pdf;base64,/, "");
 
-    const modelName = modelType === "pro" ? "gemini-1.5-pro-latest" : "gemini-2.0-flash";
+    const modelName = modelType === "pro" ? "gemini-2.5-pro" : "gemini-2.0-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
     const prompt = `Extract invoice data from this image and return ONLY a valid JSON object matching the schema. Rules:
