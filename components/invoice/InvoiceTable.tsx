@@ -59,8 +59,6 @@ function DecimalInput({
 
   return (
     <Input
-      type="number"
-      step="any"
       inputMode="decimal"
       className={className}
       placeholder={placeholder}
