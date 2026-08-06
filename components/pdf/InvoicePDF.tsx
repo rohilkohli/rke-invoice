@@ -478,7 +478,8 @@ export function InvoicePDF(props: {
   copy: InvoiceCopy;
   qrDataUrl?: string | null;
 }) {
-  const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, props.invoice.client.stateCode);
+  const companyStateCode = props.company.stateCode ?? DEFAULT_COMPANY_STATE.stateCode;
+  const taxMode = getTaxMode(companyStateCode, props.invoice.client.stateCode);
   const totals = calculateTotals({
     items: props.invoice.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
     cgstRate: props.invoice.cgstRate,
@@ -575,11 +576,13 @@ export function InvoicePDF(props: {
               ) : null}
               <View style={{ flex: 1 }}>
                 <Text style={styles.sellerName}>{props.company.companyName || "M/S RADHA KISHAN ENTERPRISES"}</Text>
-                <Text style={styles.sellerTagline}>Rental Service of Heavy Engineering Equipments</Text>
+                {props.company.tagline ? (
+                  <Text style={styles.sellerTagline}>{props.company.tagline}</Text>
+                ) : null}
                 <Text style={styles.sellerDetail}>Address: {props.company.address || "-"}</Text>
                 <Text style={styles.sellerDetail}>GSTIN: {props.company.gstin || "09ABCFR1989E1ZX"}</Text>
-                <Text style={styles.sellerDetail}>State: {DEFAULT_COMPANY_STATE.state}</Text>
-                <Text style={styles.sellerDetail}>Code: {DEFAULT_COMPANY_STATE.stateCode}</Text>
+                <Text style={styles.sellerDetail}>State: {props.company.state || DEFAULT_COMPANY_STATE.state}</Text>
+                <Text style={styles.sellerDetail}>Code: {props.company.stateCode || DEFAULT_COMPANY_STATE.stateCode}</Text>
                 {props.company.phone ? <Text style={styles.sellerDetail}>Phone: {props.company.phone}</Text> : null}
                 {props.company.email ? <Text style={styles.sellerDetail}>Email: {props.company.email}</Text> : null}
               </View>
@@ -614,7 +617,11 @@ export function InvoicePDF(props: {
             <View style={styles.metaRow}>
               <View style={styles.metaCell}>
                 <Text style={styles.metaLabel}>Reference No. & Date</Text>
-                <Text style={styles.metaValue}>-</Text>
+                <Text style={styles.metaValue}>
+                  {props.invoice.referenceNo
+                    ? `${props.invoice.referenceNo}${props.invoice.referenceDate ? ` / ${props.invoice.referenceDate}` : ""}`
+                    : "-"}
+                </Text>
               </View>
               <View style={styles.metaCellLast}>
                 <Text style={styles.metaLabel}>Buyer&apos;s Order No.</Text>
@@ -624,7 +631,7 @@ export function InvoicePDF(props: {
             <View style={styles.metaRow}>
               <View style={styles.metaCell}>
                 <Text style={styles.metaLabel}>Mode/Terms of Payment</Text>
-                <Text style={styles.metaValue}>-</Text>
+                <Text style={styles.metaValue}>{props.invoice.paymentTerms || "-"}</Text>
               </View>
               <View style={styles.metaCellLast}>
                 <Text style={styles.metaLabel}>Dispatched Through</Text>
@@ -638,7 +645,7 @@ export function InvoicePDF(props: {
               </View>
               <View style={styles.metaCellLast}>
                 <Text style={styles.metaLabel}>Terms of Delivery</Text>
-                <Text style={styles.metaValue}>-</Text>
+                <Text style={styles.metaValue}>{props.invoice.termsOfDelivery || "-"}</Text>
               </View>
             </View>
             {(props.invoice.irn || props.invoice.ewayBillNo) && (
@@ -667,13 +674,13 @@ export function InvoicePDF(props: {
               {props.invoice.client.shipToAddress || props.invoice.client.address}
             </Text>
             <Text style={styles.addressLine}>
-              GSTIN: {props.invoice.client.gstin || "-"}
+              GSTIN: {props.invoice.client.shipToGstin || props.invoice.client.gstin || "-"}
             </Text>
             <Text style={styles.addressLine}>
-              State: {props.invoice.client.state}
+              State: {props.invoice.client.shipToState || props.invoice.client.state || "-"}
             </Text>
             <Text style={styles.addressLine}>
-              Code: {props.invoice.client.stateCode}
+              Code: {props.invoice.client.shipToStateCode || props.invoice.client.stateCode || "-"}
             </Text>
             <Text style={styles.addressLine}>
               Place of Supply: {props.invoice.placeOfSupply || props.invoice.client.state}
@@ -689,7 +696,7 @@ export function InvoicePDF(props: {
               State: {props.invoice.client.state}
             </Text>
             <Text style={styles.addressLine}>
-              Code: {props.invoice.client.stateCode}
+              Code: {props.invoice.client.stateCode || "-"}
             </Text>
             <Text style={styles.addressLine}>
               Place of Supply: {props.invoice.placeOfSupply || props.invoice.client.state}
@@ -734,7 +741,7 @@ export function InvoicePDF(props: {
                     </Text>
                   )}
                 </View>
-                <View style={styles.colHsn}><Text>{item.hsnSac || ""}</Text></View>
+                <View style={styles.colHsn}><Text>{item.hsnSac || (hasData ? "998719" : "")}</Text></View>
                 <View style={styles.colGst}><Text>{itemGstRate}</Text></View>
                 <View style={styles.colUom}><Text>{item.unit || ""}</Text></View>
                 <View style={styles.colQty}><Text>{hasData ? item.qty : ""}</Text></View>
@@ -872,7 +879,7 @@ export function InvoicePDF(props: {
                 <Text style={styles.bold}>Branch - </Text>{props.company.branch || "-"}
               </Text>
               <Text style={styles.bankLine}>
-                <Text style={styles.bold}>A/C Type - </Text>Current
+                <Text style={styles.bold}>A/C Type - </Text>{props.company.accountType || "Current"}
               </Text>
             </View>
             {/* QR Code */}

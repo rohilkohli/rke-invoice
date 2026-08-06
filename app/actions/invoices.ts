@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
-import { getNextInvoiceNo } from "@/lib/bootstrap";
+import { getNextInvoiceNo, getOrCreateCompanySettings } from "@/lib/bootstrap";
 import { requireSessionUser } from "@/lib/auth";
 import {
   calculateLineAmount,
@@ -34,6 +34,10 @@ const invoiceSchema = z.object({
   invoiceNo: z.string().min(1),
   invoiceDate: z.string().min(1),
   poNo: z.string().optional().nullable(),
+  referenceNo: z.string().optional().nullable(),
+  referenceDate: z.string().optional().nullable(),
+  paymentTerms: z.string().optional().nullable(),
+  termsOfDelivery: z.string().optional().nullable(),
   billPeriodStart: z.string().optional().nullable(),
   billPeriodEnd: z.string().optional().nullable(),
 
@@ -60,6 +64,9 @@ const invoiceSchema = z.object({
     stateCode: z.string().min(1),
     shipToName: z.string().optional().nullable(),
     shipToAddress: z.string().optional().nullable(),
+    shipToGstin: z.string().optional().nullable(),
+    shipToState: z.string().optional().nullable(),
+    shipToStateCode: z.string().optional().nullable(),
   }),
 
   lineItems: z.array(lineItemSchema).min(1),
@@ -90,7 +97,8 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
 
   const data = parsed.data;
 
-  const companyStateCode = DEFAULT_COMPANY_STATE.stateCode;
+  const settings = await getOrCreateCompanySettings(user.id);
+  const companyStateCode = settings.stateCode ?? DEFAULT_COMPANY_STATE.stateCode;
   const taxMode = getTaxMode(companyStateCode, data.client.stateCode);
   const totals = calculateTotals({
     items: data.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
@@ -122,6 +130,9 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
             stateCode: data.client.stateCode,
             shipToName: data.client.shipToName ?? null,
             shipToAddress: data.client.shipToAddress ?? null,
+            shipToGstin: data.client.shipToGstin ?? null,
+            shipToState: data.client.shipToState ?? null,
+            shipToStateCode: data.client.shipToStateCode ?? null,
           },
         });
       })()
@@ -135,6 +146,9 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
           stateCode: data.client.stateCode,
           shipToName: data.client.shipToName ?? null,
           shipToAddress: data.client.shipToAddress ?? null,
+          shipToGstin: data.client.shipToGstin ?? null,
+          shipToState: data.client.shipToState ?? null,
+          shipToStateCode: data.client.shipToStateCode ?? null,
         },
       });
 
@@ -144,6 +158,10 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
       invoiceNo,
       invoiceDate: new Date(data.invoiceDate),
       poNo: data.poNo ?? null,
+      referenceNo: data.referenceNo ?? null,
+      referenceDate: data.referenceDate ?? null,
+      paymentTerms: data.paymentTerms ?? null,
+      termsOfDelivery: data.termsOfDelivery ?? null,
       billPeriodStart: toDate(data.billPeriodStart) ?? undefined,
       billPeriodEnd: toDate(data.billPeriodEnd) ?? undefined,
 
@@ -213,7 +231,8 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
   });
   if (!existingInvoice) throw new Error("Invoice not found or access denied");
 
-  const companyStateCode = DEFAULT_COMPANY_STATE.stateCode;
+  const settings = await getOrCreateCompanySettings(user.id);
+  const companyStateCode = settings.stateCode ?? DEFAULT_COMPANY_STATE.stateCode;
   const taxMode = getTaxMode(companyStateCode, data.client.stateCode);
   const totals = calculateTotals({
     items: data.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
@@ -241,6 +260,9 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
             stateCode: data.client.stateCode,
             shipToName: data.client.shipToName ?? null,
             shipToAddress: data.client.shipToAddress ?? null,
+            shipToGstin: data.client.shipToGstin ?? null,
+            shipToState: data.client.shipToState ?? null,
+            shipToStateCode: data.client.shipToStateCode ?? null,
           },
         });
       })()
@@ -254,6 +276,9 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
           stateCode: data.client.stateCode,
           shipToName: data.client.shipToName ?? null,
           shipToAddress: data.client.shipToAddress ?? null,
+          shipToGstin: data.client.shipToGstin ?? null,
+          shipToState: data.client.shipToState ?? null,
+          shipToStateCode: data.client.shipToStateCode ?? null,
         },
       });
 
@@ -268,6 +293,10 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
           invoiceNo: data.invoiceNo.trim(),
           invoiceDate: new Date(data.invoiceDate),
           poNo: data.poNo ?? null,
+          referenceNo: data.referenceNo ?? null,
+          referenceDate: data.referenceDate ?? null,
+          paymentTerms: data.paymentTerms ?? null,
+          termsOfDelivery: data.termsOfDelivery ?? null,
           billPeriodStart: toDate(data.billPeriodStart) ?? undefined,
           billPeriodEnd: toDate(data.billPeriodEnd) ?? undefined,
 

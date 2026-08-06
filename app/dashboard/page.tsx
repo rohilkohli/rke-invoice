@@ -169,6 +169,10 @@ export default async function DashboardPage() {
               upiId: company.upiId,
               logoUrl: resolveLogoDataUrl(company.logoUrl),
               termsAndConditions: company.termsAndConditions,
+              tagline: company.tagline,
+              accountType: company.accountType,
+              stateCode: company.stateCode,
+              state: company.state,
             }}
           />
         </div>

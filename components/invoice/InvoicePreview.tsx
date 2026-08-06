@@ -20,6 +20,10 @@ export type CompanySettingsPreview = {
   upiId?: string | null;
   logoUrl?: string | null;
   termsAndConditions?: string | null;
+  tagline?: string | null;
+  accountType?: string | null;
+  stateCode?: string | null;
+  state?: string | null;
 };
 
 export function InvoicePreview(props: {

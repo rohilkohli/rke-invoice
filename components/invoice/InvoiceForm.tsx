@@ -516,6 +516,42 @@ export function InvoiceForm(props: {
                   placeholder="Place of supply"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Reference No.</Label>
+                  <Input
+                    value={invoice.referenceNo ?? ""}
+                    onChange={(e) => setField("referenceNo", e.target.value)}
+                    placeholder="Ref No."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Reference Date</Label>
+                  <Input
+                    type="date"
+                    value={invoice.referenceDate ?? ""}
+                    onChange={(e) => setField("referenceDate", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Payment Terms</Label>
+                  <Input
+                    value={invoice.paymentTerms ?? ""}
+                    onChange={(e) => setField("paymentTerms", e.target.value)}
+                    placeholder="e.g. 30 Days"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Terms of Delivery</Label>
+                  <Input
+                    value={invoice.termsOfDelivery ?? ""}
+                    onChange={(e) => setField("termsOfDelivery", e.target.value)}
+                    placeholder="e.g. FOB / CIF"
+                  />
+                </div>
+              </div>
               <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-3">
                 <div className="space-y-0.5">
                   <div className="text-sm font-medium">Reverse Charge</div>
@@ -646,6 +682,32 @@ export function InvoiceForm(props: {
                       onChange={(e) => setClientField("shipToAddress", e.target.value)}
                       placeholder="Ship to address"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Consignee GSTIN</Label>
+                    <Input
+                      value={invoice.client.shipToGstin ?? ""}
+                      onChange={(e) => setClientField("shipToGstin", e.target.value)}
+                      placeholder="Consignee GSTIN"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Consignee State</Label>
+                      <Input
+                        value={invoice.client.shipToState ?? ""}
+                        onChange={(e) => setClientField("shipToState", e.target.value)}
+                        placeholder="e.g. Maharashtra"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Consignee State Code</Label>
+                      <Input
+                        value={invoice.client.shipToStateCode ?? ""}
+                        onChange={(e) => setClientField("shipToStateCode", e.target.value)}
+                        placeholder="e.g. 27"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -933,6 +995,38 @@ export function InvoiceForm(props: {
               />
             </div>
             <div className="space-y-2">
+              <Label>Reference No.</Label>
+              <Input
+                value={invoice.referenceNo ?? ""}
+                onChange={(e) => setField("referenceNo", e.target.value)}
+                placeholder="Ref No."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Reference Date</Label>
+              <Input
+                type="date"
+                value={invoice.referenceDate ?? ""}
+                onChange={(e) => setField("referenceDate", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Terms</Label>
+              <Input
+                value={invoice.paymentTerms ?? ""}
+                onChange={(e) => setField("paymentTerms", e.target.value)}
+                placeholder="e.g. 30 Days"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Terms of Delivery</Label>
+              <Input
+                value={invoice.termsOfDelivery ?? ""}
+                onChange={(e) => setField("termsOfDelivery", e.target.value)}
+                placeholder="e.g. FOB / CIF"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Bill Period Start</Label>
               <Input
                 type="date"
@@ -1154,6 +1248,30 @@ export function InvoiceForm(props: {
                     value={invoice.client.shipToAddress ?? ""}
                     onChange={(e) => setClientField("shipToAddress", e.target.value)}
                     placeholder="Ship to address"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Consignee GSTIN</Label>
+                  <Input
+                    value={invoice.client.shipToGstin ?? ""}
+                    onChange={(e) => setClientField("shipToGstin", e.target.value)}
+                    placeholder="Consignee GSTIN"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Consignee State</Label>
+                  <Input
+                    value={invoice.client.shipToState ?? ""}
+                    onChange={(e) => setClientField("shipToState", e.target.value)}
+                    placeholder="e.g. Maharashtra"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Consignee State Code</Label>
+                  <Input
+                    value={invoice.client.shipToStateCode ?? ""}
+                    onChange={(e) => setClientField("shipToStateCode", e.target.value)}
+                    placeholder="e.g. 27"
                   />
                 </div>
               </>

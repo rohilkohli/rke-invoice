@@ -30,6 +30,10 @@ const settingsSchema = z.object({
   defaultIgstRate: z.number().nonnegative(),
 
   termsAndConditions: z.string().optional().nullable(),
+  tagline: z.string().optional().nullable(),
+  accountType: z.string().optional().nullable(),
+  stateCode: z.string().optional().nullable(),
+  state: z.string().optional().nullable(),
 });
 
 function toDecimal(value: number) {
@@ -71,6 +75,10 @@ export async function updateCompanySettings(input: z.infer<typeof settingsSchema
       defaultSgstRate: toDecimal(data.defaultSgstRate),
       defaultIgstRate: toDecimal(data.defaultIgstRate),
       termsAndConditions: data.termsAndConditions ?? null,
+      tagline: data.tagline ?? null,
+      accountType: data.accountType ?? null,
+      stateCode: data.stateCode ?? null,
+      state: data.state ?? null,
     },
   });
 

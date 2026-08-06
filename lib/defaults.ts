@@ -9,6 +9,10 @@ export const DEFAULT_COMPANY = {
   accountNo: "10126129701",
   ifsc: "IDFB0021291",
   upiId: "agranitinkohli@gmail.com",
+  tagline: "Rental Service of Heavy Engineering Equipments",
+  accountType: "Current",
+  state: "Uttar Pradesh",
+  stateCode: "09",
   invoicePrefix: `RKE-${new Date().getFullYear()}-`,
   defaultCgstRate: 9,
   defaultSgstRate: 9,
@@ -31,6 +35,9 @@ export const DEFAULT_CLIENT = {
   shipToName: "RIL",
   shipToAddress:
     "Survey No 135-137, Nagothane Manufacturing Division, SH-86, Nagothane, Raigad, Maharashtra 402125",
+  shipToGstin: "",
+  shipToState: "Maharashtra",
+  shipToStateCode: "27",
 } as const;
 
 export const DEFAULT_COMPANY_STATE = {

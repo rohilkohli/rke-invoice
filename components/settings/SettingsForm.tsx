@@ -35,6 +35,10 @@ export type CompanySettingsFormData = {
   defaultIgstRate: number;
   termsAndConditions?: string | null;
   gdriveWebhookUrl?: string | null;
+  tagline?: string | null;
+  accountType?: string | null;
+  stateCode?: string | null;
+  state?: string | null;
 };
 
 async function fileToDataUrl(file: File) {
@@ -121,11 +125,35 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
             />
           </div>
           <div className="space-y-2 md:col-span-2">
+            <Label>Business Tagline / Nature</Label>
+            <Input
+              value={form.tagline ?? ""}
+              onChange={(e) => setForm((p) => ({ ...p, tagline: e.target.value }))}
+              placeholder="e.g. Rental Service of Heavy Engineering Equipments"
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
             <Label>Address</Label>
             <Textarea
               value={form.address}
               onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
               className="min-h-20"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Company State</Label>
+            <Input
+              value={form.state ?? ""}
+              onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))}
+              placeholder="e.g. Uttar Pradesh"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Company State Code</Label>
+            <Input
+              value={form.stateCode ?? ""}
+              onChange={(e) => setForm((p) => ({ ...p, stateCode: e.target.value }))}
+              placeholder="e.g. 09"
             />
           </div>
           <div className="space-y-2">
@@ -229,7 +257,15 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
               onChange={(e) => setForm((p) => ({ ...p, ifsc: e.target.value }))}
             />
           </div>
-          <div className="space-y-2 md:col-span-2">
+          <div className="space-y-2">
+            <Label>Account Type</Label>
+            <Input
+              value={form.accountType ?? ""}
+              onChange={(e) => setForm((p) => ({ ...p, accountType: e.target.value }))}
+              placeholder="e.g. Current, Savings"
+            />
+          </div>
+          <div className="space-y-2">
             <Label>UPI ID (VPA)</Label>
             <Input
               value={form.upiId ?? ""}

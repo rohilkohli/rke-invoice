@@ -14,6 +14,10 @@ export async function generateInvoicePdfBase64Server(
     invoiceNo: string;
     invoiceDate: Date;
     poNo?: string | null;
+    referenceNo?: string | null;
+    referenceDate?: string | null;
+    paymentTerms?: string | null;
+    termsOfDelivery?: string | null;
     billPeriodStart?: Date | null;
     billPeriodEnd?: Date | null;
     state: string;
@@ -37,6 +41,9 @@ export async function generateInvoicePdfBase64Server(
       stateCode: string;
       shipToName?: string | null;
       shipToAddress?: string | null;
+      shipToGstin?: string | null;
+      shipToState?: string | null;
+      shipToStateCode?: string | null;
     };
     lineItems: Array<{
       sno: number;
@@ -67,6 +74,10 @@ export async function generateInvoicePdfBase64Server(
     upiId?: string | null;
     logoUrl?: string | null;
     termsAndConditions?: string | null;
+    tagline?: string | null;
+    accountType?: string | null;
+    stateCode?: string | null;
+    state?: string | null;
   } | null
 ): Promise<string> {
   const invoiceData: InvoiceFormData = {
@@ -74,6 +85,10 @@ export async function generateInvoicePdfBase64Server(
     invoiceNo: invoiceRecord.invoiceNo,
     invoiceDate: invoiceRecord.invoiceDate ? invoiceRecord.invoiceDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
     poNo: invoiceRecord.poNo ?? undefined,
+    referenceNo: invoiceRecord.referenceNo ?? undefined,
+    referenceDate: invoiceRecord.referenceDate ?? undefined,
+    paymentTerms: invoiceRecord.paymentTerms ?? undefined,
+    termsOfDelivery: invoiceRecord.termsOfDelivery ?? undefined,
     billPeriodStart: invoiceRecord.billPeriodStart ? invoiceRecord.billPeriodStart.toISOString().split("T")[0] : undefined,
     billPeriodEnd: invoiceRecord.billPeriodEnd ? invoiceRecord.billPeriodEnd.toISOString().split("T")[0] : undefined,
     state: invoiceRecord.state,
@@ -97,6 +112,9 @@ export async function generateInvoicePdfBase64Server(
       stateCode: invoiceRecord.client.stateCode,
       shipToName: invoiceRecord.client.shipToName ?? undefined,
       shipToAddress: invoiceRecord.client.shipToAddress ?? undefined,
+      shipToGstin: invoiceRecord.client.shipToGstin ?? undefined,
+      shipToState: invoiceRecord.client.shipToState ?? undefined,
+      shipToStateCode: invoiceRecord.client.shipToStateCode ?? undefined,
     },
     lineItems: invoiceRecord.lineItems.map((li) => ({
       sno: li.sno,
@@ -133,12 +151,17 @@ export async function generateInvoicePdfBase64Server(
     upiId: companyRecord?.upiId ?? null,
     logoUrl,
     termsAndConditions: companyRecord?.termsAndConditions ?? null,
+    tagline: companyRecord?.tagline ?? null,
+    accountType: companyRecord?.accountType ?? null,
+    stateCode: companyRecord?.stateCode ?? null,
+    state: companyRecord?.state ?? null,
   };
 
   // Generate UPI QR Code Data URL on Server
   let qrDataUrl: string | null = null;
   try {
-    const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, invoiceData.client.stateCode);
+    const companyStateCode = companyData.stateCode ?? DEFAULT_COMPANY_STATE.stateCode;
+    const taxMode = getTaxMode(companyStateCode, invoiceData.client.stateCode);
     const totals = calculateTotals({
       items: invoiceData.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
       cgstRate: invoiceData.cgstRate,

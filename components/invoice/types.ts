@@ -10,6 +10,9 @@ export type ClientForm = {
   stateCode: string;
   shipToName?: string;
   shipToAddress?: string;
+  shipToGstin?: string;
+  shipToState?: string;
+  shipToStateCode?: string;
 };
 
 export type LineItemForm = {
@@ -37,6 +40,10 @@ export type InvoiceFormData = {
   invoiceNo: string;
   invoiceDate: string; // YYYY-MM-DD
   poNo?: string;
+  referenceNo?: string;
+  referenceDate?: string;
+  paymentTerms?: string;
+  termsOfDelivery?: string;
   billPeriodStart?: string; // YYYY-MM-DD
   billPeriodEnd?: string; // YYYY-MM-DD
 
