@@ -27,6 +27,7 @@ model Invoice {
   poNo            String?
   referenceNo      String?
   referenceDate    String?
+  buyerOrderNo     String?
   paymentTerms     String?
   termsOfDelivery  String?
 

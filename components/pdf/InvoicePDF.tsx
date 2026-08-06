@@ -342,10 +342,12 @@ const styles = StyleSheet.create({
   },
   bdColHsn: {
     flex: 0.8,
+    minWidth: 52,
     textAlign: "center",
     borderRightWidth: 0.5,
     borderRightColor: "#000",
     justifyContent: "center",
+    overflow: "hidden",
   },
   bdColTaxable: {
     flex: 1.3,
@@ -608,8 +610,10 @@ export function InvoicePDF(props: {
               <View style={styles.metaCellLast}>
                 <Text style={styles.metaLabel}>Bill Period</Text>
                 <Text style={styles.metaValue}>
-                  {props.invoice.billPeriodStart && props.invoice.billPeriodEnd
-                    ? `${props.invoice.billPeriodStart} to ${props.invoice.billPeriodEnd}`
+                  {props.invoice.billPeriodStart
+                    ? props.invoice.billPeriodEnd
+                      ? `${props.invoice.billPeriodStart} to ${props.invoice.billPeriodEnd}`
+                      : props.invoice.billPeriodStart
                     : "-"}
                 </Text>
               </View>
@@ -625,7 +629,7 @@ export function InvoicePDF(props: {
               </View>
               <View style={styles.metaCellLast}>
                 <Text style={styles.metaLabel}>Buyer&apos;s Order No.</Text>
-                <Text style={styles.metaValue}>-</Text>
+                <Text style={styles.metaValue}>{props.invoice.buyerOrderNo || "-"}</Text>
               </View>
             </View>
             <View style={styles.metaRow}>
@@ -806,7 +810,9 @@ export function InvoicePDF(props: {
           })}
 
           <View style={styles.breakdownTotal}>
-            <View style={styles.bdColHsn}><Text>Total</Text></View>
+            <View style={[styles.bdColHsn, { paddingHorizontal: 2 }]}>
+              <Text style={{ fontSize: 7 }}>Total</Text>
+            </View>
             <View style={styles.bdColTaxable}><Text>{inr(totals.totalBeforeTax)}</Text></View>
             {taxMode === "INTRA_STATE" ? (
               <>

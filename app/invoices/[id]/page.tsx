@@ -43,6 +43,7 @@ export default async function InvoiceByIdPage(props: {
     poNo: invoice.poNo ?? "",
     referenceNo: invoice.referenceNo ?? "",
     referenceDate: invoice.referenceDate ?? "",
+    buyerOrderNo: invoice.buyerOrderNo ?? "",
     paymentTerms: invoice.paymentTerms ?? "",
     termsOfDelivery: invoice.termsOfDelivery ?? "",
     billPeriodStart: invoice.billPeriodStart

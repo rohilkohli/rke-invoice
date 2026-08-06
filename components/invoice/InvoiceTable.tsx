@@ -18,6 +18,25 @@ import {
 
 import { useInvoiceStore } from "./useInvoiceStore";
 
+function validateHsnSac(code: string): { valid: boolean; warning: string | null } {
+  if (!code || code.trim() === "") return { valid: true, warning: null };
+  const cleaned = code.trim();
+  const isAllDigits = /^\d+$/.test(cleaned);
+  if (!isAllDigits) return { valid: false, warning: "HSN/SAC must be numeric." };
+  if (cleaned.length !== 6 && cleaned.length !== 8) {
+    return { valid: false, warning: "HSN/SAC should be 6 or 8 digits." };
+  }
+  // SAC codes (services) start with 99; HSN codes (goods) don't
+  // For a service invoice, warn if a goods HSN is used
+  if (!cleaned.startsWith("99")) {
+    return {
+      valid: true,
+      warning: "This looks like a goods HSN code. For services, use a SAC code starting with 99 (e.g. 998719).",
+    };
+  }
+  return { valid: true, warning: null };
+}
+
 function DecimalInput({
   value,
   onChange,
@@ -166,7 +185,14 @@ export function InvoiceTable() {
                       value={li.hsnSac ?? ""}
                       placeholder="HSN/SAC"
                       onChange={(e) => setLineItem(idx, { hsnSac: e.target.value })}
+                      className={validateHsnSac(li.hsnSac ?? "").warning ? "border-amber-400 focus-visible:ring-amber-400" : ""}
                     />
+                    {(() => {
+                      const { warning } = validateHsnSac(li.hsnSac ?? "");
+                      return warning ? (
+                        <p className="text-[10px] text-amber-500 mt-0.5 leading-tight">{warning}</p>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Unit</label>
@@ -287,7 +313,14 @@ export function InvoiceTable() {
                       onChange={(e) =>
                         setLineItem(idx, { hsnSac: e.target.value })
                       }
+                      className={validateHsnSac(li.hsnSac ?? "").warning ? "border-amber-400 focus-visible:ring-amber-400" : ""}
                     />
+                    {(() => {
+                      const { warning } = validateHsnSac(li.hsnSac ?? "");
+                      return warning ? (
+                        <p className="text-[10px] text-amber-500 mt-0.5 leading-tight">{warning}</p>
+                      ) : null;
+                    })()}
                   </TableCell>
                   <TableCell className="align-top pt-2">
                     <Input

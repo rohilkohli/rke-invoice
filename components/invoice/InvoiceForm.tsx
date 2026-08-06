@@ -534,6 +534,14 @@ export function InvoiceForm(props: {
                   />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>Buyer&apos;s Order No.</Label>
+                <Input
+                  value={invoice.buyerOrderNo ?? ""}
+                  onChange={(e) => setField("buyerOrderNo", e.target.value)}
+                  placeholder="e.g. PO-2026-001"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Payment Terms</Label>
@@ -1008,6 +1016,14 @@ export function InvoiceForm(props: {
                 type="date"
                 value={invoice.referenceDate ?? ""}
                 onChange={(e) => setField("referenceDate", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Buyer&apos;s Order No.</Label>
+              <Input
+                value={invoice.buyerOrderNo ?? ""}
+                onChange={(e) => setField("buyerOrderNo", e.target.value)}
+                placeholder="e.g. PO-2026-001"
               />
             </div>
             <div className="space-y-2">

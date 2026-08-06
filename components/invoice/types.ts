@@ -42,6 +42,7 @@ export type InvoiceFormData = {
   poNo?: string;
   referenceNo?: string;
   referenceDate?: string;
+  buyerOrderNo?: string;
   paymentTerms?: string;
   termsOfDelivery?: string;
   billPeriodStart?: string; // YYYY-MM-DD

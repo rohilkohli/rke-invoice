@@ -16,6 +16,7 @@ export async function generateInvoicePdfBase64Server(
     poNo?: string | null;
     referenceNo?: string | null;
     referenceDate?: string | null;
+    buyerOrderNo?: string | null;
     paymentTerms?: string | null;
     termsOfDelivery?: string | null;
     billPeriodStart?: Date | null;
@@ -87,6 +88,7 @@ export async function generateInvoicePdfBase64Server(
     poNo: invoiceRecord.poNo ?? undefined,
     referenceNo: invoiceRecord.referenceNo ?? undefined,
     referenceDate: invoiceRecord.referenceDate ?? undefined,
+    buyerOrderNo: invoiceRecord.buyerOrderNo ?? undefined,
     paymentTerms: invoiceRecord.paymentTerms ?? undefined,
     termsOfDelivery: invoiceRecord.termsOfDelivery ?? undefined,
     billPeriodStart: invoiceRecord.billPeriodStart ? invoiceRecord.billPeriodStart.toISOString().split("T")[0] : undefined,

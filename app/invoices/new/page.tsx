@@ -28,6 +28,7 @@ export default async function NewInvoicePage() {
     poNo: "",
     referenceNo: "",
     referenceDate: "",
+    buyerOrderNo: "",
     paymentTerms: "",
     termsOfDelivery: "",
     billPeriodStart: "",
