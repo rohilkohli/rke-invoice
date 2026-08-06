@@ -33,6 +33,12 @@ export async function postToGDriveWebhook(webhookUrl: string, payload: unknown):
     }
 
     if (!response.ok && response.status !== 200) {
+      if (response.status === 403) {
+        return {
+          success: false,
+          error: "Webhook returned HTTP 403: Forbidden. In Google Apps Script deployment, set 'Who has access' to 'Anyone' and redeploy.",
+        };
+      }
       return {
         success: false,
         error: `Webhook returned HTTP ${response.status}: ${response.statusText}`,
