@@ -108,7 +108,7 @@ async function scanWithGemini(
 }
 
 // ---------------------------------------------------------------------------
-// Provider: OpenAI (gpt-4o-mini — generous free credits for new accounts)
+// Provider: OpenAI (gpt-4o-mini — requires paid credits, ~$0.001/scan)
 // ---------------------------------------------------------------------------
 async function scanWithOpenAI(
   base64Clean: string,
@@ -156,7 +156,56 @@ async function scanWithOpenAI(
 }
 
 // ---------------------------------------------------------------------------
-// Main server action — Gemini first, OpenAI fallback on quota exceeded
+// Provider: Mistral (pixtral-12b — FREE tier, no credit card required)
+//   Sign up: https://console.mistral.ai → API Keys
+// ---------------------------------------------------------------------------
+async function scanWithMistral(
+  base64Clean: string,
+  mimeType: string,
+  apiKey: string
+): Promise<{ success: boolean; data?: Partial<InvoiceFormData>; error?: string }> {
+  const dataUrl = `data:${mimeType};base64,${base64Clean}`;
+
+  const payload = {
+    model: "pixtral-12b-2409",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: INVOICE_PROMPT + "\n\nReturn ONLY the raw JSON object — no markdown fences, no extra text." },
+          { type: "image_url", image_url: { url: dataUrl } }
+        ]
+      }
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 2000,
+  };
+
+  const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    return { success: false, error: `Mistral API error ${response.status}: ${errText}` };
+  }
+
+  const json = await response.json();
+  const textResult = json.choices?.[0]?.message?.content;
+  if (!textResult) {
+    return { success: false, error: "Empty response from Mistral." };
+  }
+
+  return { success: true, data: JSON.parse(textResult) };
+}
+
+// ---------------------------------------------------------------------------
+// Main server action — Gemini → OpenAI → Mistral (tries each in order)
 // ---------------------------------------------------------------------------
 export async function scanInvoiceAction(
   base64Data: string,
@@ -173,46 +222,45 @@ export async function scanInvoiceAction(
       .replace(/^data:image\/\w+;base64,/, "")
       .replace(/^data:application\/pdf;base64,/, "");
 
-    const geminiKey = process.env.GEMINI_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const geminiKey  = process.env.GEMINI_API_KEY;
+    const openaiKey  = process.env.OPENAI_API_KEY;
+    const mistralKey = process.env.MISTRAL_API_KEY;
 
-    if (!geminiKey && !openaiKey) {
+    if (!geminiKey && !openaiKey && !mistralKey) {
       return {
         success: false,
-        error: "No AI API key configured. Set GEMINI_API_KEY or OPENAI_API_KEY in your environment variables."
+        error: "No AI API key configured. Set GEMINI_API_KEY, OPENAI_API_KEY, or MISTRAL_API_KEY."
       };
     }
 
-    // Try Gemini first
+    // 1️⃣ Try Gemini first (gemini-2.0-flash — 1,500 req/day free)
     if (geminiKey) {
       console.log("[OCR] Trying Gemini gemini-2.0-flash...");
       const result = await scanWithGemini(base64Clean, mimeType, geminiKey);
-      if (result.success) {
-        console.log("[OCR] Gemini succeeded.");
-        return result;
-      }
-      if (!result.quotaExceeded) {
-        // Non-quota error from Gemini — still try OpenAI if available
-        console.warn("[OCR] Gemini failed (non-quota):", result.error);
-      } else {
-        console.warn("[OCR] Gemini quota exceeded — falling back to OpenAI.");
-      }
+      if (result.success) { console.log("[OCR] Gemini succeeded."); return result; }
+      console.warn("[OCR] Gemini failed:", result.error);
     }
 
-    // Fallback to OpenAI
+    // 2️⃣ Fallback: OpenAI gpt-4o-mini (paid credits required)
     if (openaiKey) {
       console.log("[OCR] Trying OpenAI gpt-4o-mini...");
       const result = await scanWithOpenAI(base64Clean, mimeType, openaiKey);
-      if (result.success) {
-        console.log("[OCR] OpenAI succeeded.");
-        return result;
-      }
+      if (result.success) { console.log("[OCR] OpenAI succeeded."); return result; }
+      console.warn("[OCR] OpenAI failed:", result.error);
+    }
+
+    // 3️⃣ Fallback: Mistral pixtral-12b (free tier — no credit card needed)
+    if (mistralKey) {
+      console.log("[OCR] Trying Mistral pixtral-12b...");
+      const result = await scanWithMistral(base64Clean, mimeType, mistralKey);
+      if (result.success) { console.log("[OCR] Mistral succeeded."); return result; }
+      console.warn("[OCR] Mistral failed:", result.error);
       return result;
     }
 
     return {
       success: false,
-      error: "Gemini quota exceeded and no OPENAI_API_KEY fallback is configured."
+      error: "All configured AI providers failed or quota is exhausted. Check Vercel logs for details."
     };
 
   } catch (err) {
