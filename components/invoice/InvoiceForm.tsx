@@ -188,7 +188,7 @@ export function InvoiceForm(props: {
               shipToAddress: parsed.client?.shipToAddress ?? parsed.client?.address ?? invoice.client.shipToAddress,
             },
             lineItems: parsed.lineItems && parsed.lineItems.length > 0
-              ? parsed.lineItems.map((li: { sno?: number; description?: string; hsnSac?: string; unit?: string; qty?: number; rate?: number }, idx: number) => ({
+              ? parsed.lineItems.map((li, idx) => ({
                   sno: li.sno ?? (idx + 1),
                   description: li.description ?? "",
                   hsnSac: li.hsnSac ?? "",
