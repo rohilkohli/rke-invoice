@@ -13,12 +13,31 @@ export async function postToGDriveWebhook(webhookUrl: string, payload: unknown):
   }
 
   try {
-    const response = await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" }, // Apps Script handles text/plain body without CORS preflight
-      body: JSON.stringify(payload),
-      redirect: "follow",
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    let response: Response;
+    try {
+      response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+          "Accept": "application/json, text/plain, */*",
+        },
+        body: JSON.stringify(payload),
+        redirect: "follow",
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!response.ok && response.status !== 200) {
+      return {
+        success: false,
+        error: `Webhook returned HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
 
     const resText = await response.text();
     let resJson: { status?: string; error?: string; message?: string } = {};
@@ -36,7 +55,13 @@ export async function postToGDriveWebhook(webhookUrl: string, payload: unknown):
     }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    return { success: false, error: `Failed to connect to Google Drive Webhook: ${errorMessage}` };
+    const isTimeout = errorMessage.includes("abort") || errorMessage.includes("timeout");
+    return {
+      success: false,
+      error: isTimeout
+        ? "Google Drive Webhook timed out after 30 seconds. Check your Apps Script deployment."
+        : `Failed to connect to Google Drive Webhook: ${errorMessage}`,
+    };
   }
 }
 
@@ -80,19 +105,25 @@ export async function syncInvoiceToGDrive(invoiceId: number, overrideUrl?: strin
 
     if (!pdfBase64) {
       try {
-        pdfBase64 = await generateInvoicePdfBase64Server(invoice, company);
-        if (pdfBase64.includes("base64,")) {
-          pdfBase64 = pdfBase64.split("base64,")[1];
-        }
+        console.log("[GDrive Sync] pdfData empty, generating server-side PDF for invoice", invoice.invoiceNo);
+        const generated = await generateInvoicePdfBase64Server(invoice, company);
+        pdfBase64 = generated.includes("base64,") ? generated.split("base64,")[1] : generated;
         pdfBase64 = pdfBase64.trim().replace(/\s+/g, "");
 
-        // Persist generated PDF data into database
-        await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: { pdfName: filename, pdfData: pdfBase64 },
-        });
+        if (pdfBase64) {
+          await prisma.invoice.update({
+            where: { id: invoice.id },
+            data: { pdfName: filename, pdfData: pdfBase64 },
+          });
+          console.log("[GDrive Sync] Server-side PDF generated and saved for", invoice.invoiceNo);
+        } else {
+          console.error("[GDrive Sync] Server-side PDF generation returned empty string for", invoice.invoiceNo);
+          return { success: false, error: "PDF generation returned empty result" };
+        }
       } catch (genErr) {
-        console.error("Server-side PDF generation error:", genErr);
+        const msg = genErr instanceof Error ? genErr.message : String(genErr);
+        console.error("[GDrive Sync] Server-side PDF generation failed:", msg);
+        return { success: false, error: `PDF generation failed: ${msg}` };
       }
     }
 

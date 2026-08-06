@@ -173,6 +173,7 @@ export default async function DashboardPage() {
               accountType: company.accountType,
               stateCode: company.stateCode,
               state: company.state,
+              gdriveWebhookUrl: company.gdriveWebhookUrl,
             }}
           />
         </div>

@@ -89,6 +89,7 @@ export default async function NewInvoicePage() {
         accountType: company.accountType,
         stateCode: company.stateCode,
         state: company.state,
+        gdriveWebhookUrl: company.gdriveWebhookUrl,
       }}
     />
   );

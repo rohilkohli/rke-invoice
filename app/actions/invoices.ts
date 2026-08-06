@@ -216,7 +216,9 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
   });
 
   revalidatePath("/dashboard");
-  syncInvoiceToGDrive(invoice.id).catch(() => {});
+  syncInvoiceToGDrive(invoice.id).catch((err) => {
+    console.error("[GDrive Sync Error]", err);
+  });
   return { success: true, id: invoice.id };
 }
 
@@ -358,7 +360,9 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
 
   revalidatePath("/dashboard");
   revalidatePath(`/invoices/${data.id}`);
-  syncInvoiceToGDrive(existingInvoice.id).catch(() => {});
+  syncInvoiceToGDrive(existingInvoice.id).catch((err) => {
+    console.error("[GDrive Sync Error]", err);
+  });
   return { ok: true };
 }
 
@@ -402,6 +406,8 @@ export async function saveInvoicePdf(invoiceId: number, filename: string, base64
   });
   revalidatePath("/dashboard");
   revalidatePath(`/invoices/${invoiceId}`);
-  syncInvoiceToGDrive(invoiceId).catch(() => {});
+  syncInvoiceToGDrive(invoiceId).catch((err) => {
+    console.error("[GDrive Sync Error]", err);
+  });
   return { ok: true };
 }

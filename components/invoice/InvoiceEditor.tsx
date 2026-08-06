@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { Cloud, Loader2 } from "lucide-react";
+
 import { createInvoice, updateInvoice } from "@/app/actions/invoices";
+import { syncSingleInvoiceAction } from "@/app/actions/gdrive";
 import { PdfActions } from "@/components/pdf/PdfActions";
 import { UPIQRCode } from "@/components/qr/UPIQRCode";
 import { XlsxActions } from "@/components/export/XlsxActions";
@@ -12,6 +15,7 @@ import { calculateTotals, getTaxMode } from "@/lib/calculations";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 import { InvoiceForm } from "./InvoiceForm";
 import { InvoicePreview, type CompanySettingsPreview } from "./InvoicePreview";
@@ -30,8 +34,27 @@ export function InvoiceEditor(props: {
   const invoice = useInvoiceStore((s) => s.invoice);
   const setSignature = useInvoiceStore((s) => s.setSignature);
   const [saving, startTransition] = useTransition();
+  const [syncingDrive, startDriveTransition] = useTransition();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(true);
+
+  const onSyncDrive = () => {
+    const invoiceId = invoice.id;
+    if (!invoiceId) return;
+    startDriveTransition(async () => {
+      try {
+        const res = await syncSingleInvoiceAction(invoiceId);
+        if (res.success) {
+          toast.success(res.message || "Synced to Google Drive");
+        } else {
+          toast.error(res.error || "Failed to sync to Google Drive");
+        }
+      } catch (err) {
+        toast.error("Failed to sync to Google Drive");
+        console.error(err);
+      }
+    });
+  };
 
   useEffect(() => {
     setInvoice(props.initialInvoice);
@@ -137,6 +160,22 @@ Total Amount: ₹${totalAmount}`;
                 qrDataUrl={qrDataUrl}
               />
               <XlsxActions invoice={invoice} company={props.company} />
+              {props.company.gdriveWebhookUrl && invoice.id ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={syncingDrive}
+                  onClick={onSyncDrive}
+                >
+                  {syncingDrive ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Cloud className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Sync to Drive
+                </Button>
+              ) : null}
             </div>
           </div>
 

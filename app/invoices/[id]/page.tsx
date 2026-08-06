@@ -108,6 +108,7 @@ export default async function InvoiceByIdPage(props: {
         accountType: company.accountType,
         stateCode: company.stateCode,
         state: company.state,
+        gdriveWebhookUrl: company.gdriveWebhookUrl,
       }}
     />
   );

@@ -154,9 +154,9 @@ export async function generateInvoicePdfBase64Server(
     logoUrl,
     termsAndConditions: companyRecord?.termsAndConditions ?? null,
     tagline: companyRecord?.tagline ?? null,
-    accountType: companyRecord?.accountType ?? null,
-    stateCode: companyRecord?.stateCode ?? null,
-    state: companyRecord?.state ?? null,
+    accountType: companyRecord?.accountType ?? "Current",
+    stateCode: companyRecord?.stateCode ?? "09",
+    state: companyRecord?.state ?? "Uttar Pradesh",
   };
 
   // Generate UPI QR Code Data URL on Server
