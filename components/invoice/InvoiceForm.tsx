@@ -188,7 +188,7 @@ export function InvoiceForm(props: {
               shipToAddress: parsed.client?.shipToAddress ?? parsed.client?.address ?? invoice.client.shipToAddress,
             },
             lineItems: parsed.lineItems && parsed.lineItems.length > 0
-              ? parsed.lineItems.map((li: { sno?: number; description?: string; hsnSac?: string; unit?: string; qty?: number; rate?: number }, idx: number) => ({
+              ? parsed.lineItems.map((li, idx) => ({
                   sno: li.sno ?? (idx + 1),
                   description: li.description ?? "",
                   hsnSac: li.hsnSac ?? "",
@@ -270,7 +270,7 @@ export function InvoiceForm(props: {
         if (!invoice.client.state?.trim()) return "Client state is required (Step 2).";
         return null;
       case 3:
-        if (!invoice.lineItems.some((li) => li.description.trim() && li.rate > 0))
+        if (!invoice.lineItems.some((li) => li.description.trim() && Number(li.rate) > 0))
           return "At least one line item with a description and rate is required (Step 3).";
         return null;
       default:
