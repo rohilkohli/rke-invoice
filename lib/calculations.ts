@@ -1,8 +1,8 @@
 export type TaxMode = "INTRA_STATE" | "INTER_STATE";
 
 export type LineItemInput = {
-  qty: number;
-  rate: number;
+  qty: number | string;
+  rate: number | string;
 };
 
 export function roundMoney(value: number): number {
@@ -18,7 +18,10 @@ export function getTaxMode(
   return a && b && a === b ? "INTRA_STATE" : "INTER_STATE";
 }
 
-export function calculateLineAmount(qty: number, rate: number): number {
+export function calculateLineAmount(
+  qty: number | string,
+  rate: number | string,
+): number {
   return roundMoney((Number(qty) || 0) * (Number(rate) || 0));
 }
 

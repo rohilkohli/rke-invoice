@@ -207,16 +207,16 @@ export function InvoiceTable() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Qty</label>
-                    <DecimalInput
-                      value={li.qty}
-                      onChange={(n) => setLineItem(idx, { qty: n })}
+                    <Input
+                      value={String(li.qty ?? "")}
+                      onChange={(e) => setLineItem(idx, { qty: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Rate</label>
-                    <DecimalInput
-                      value={li.rate}
-                      onChange={(n) => setLineItem(idx, { rate: n })}
+                    <Input
+                      value={String(li.rate ?? "")}
+                      onChange={(e) => setLineItem(idx, { rate: e.target.value })}
                     />
                   </div>
                 </div>
@@ -330,17 +330,17 @@ export function InvoiceTable() {
                     />
                   </TableCell>
                   <TableCell className="align-top pt-2">
-                    <DecimalInput
+                    <Input
                       className="text-right"
-                      value={li.qty}
-                      onChange={(n) => setLineItem(idx, { qty: n })}
+                      value={String(li.qty ?? "")}
+                      onChange={(e) => setLineItem(idx, { qty: e.target.value })}
                     />
                   </TableCell>
                   <TableCell className="align-top pt-2">
-                    <DecimalInput
+                    <Input
                       className="text-right"
-                      value={li.rate}
-                      onChange={(n) => setLineItem(idx, { rate: n })}
+                      value={String(li.rate ?? "")}
+                      onChange={(e) => setLineItem(idx, { rate: e.target.value })}
                     />
                   </TableCell>
                   <TableCell className="align-top pt-3.5 text-right font-medium tabular-nums">

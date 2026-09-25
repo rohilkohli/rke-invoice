@@ -522,7 +522,7 @@ export function InvoicePDF(props: {
 
   props.invoice.lineItems.forEach((item) => {
     const hsn = item.hsnSac || "998719";
-    const taxableValue = item.qty * item.rate;
+    const taxableValue = (Number(item.qty) || 0) * (Number(item.rate) || 0);
 
     let cgstAmt = 0;
     let sgstAmt = 0;
@@ -687,7 +687,7 @@ export function InvoicePDF(props: {
               Code: {props.invoice.client.shipToStateCode || props.invoice.client.stateCode || "-"}
             </Text>
             <Text style={styles.addressLine}>
-              Place of Supply: {props.invoice.placeOfSupply || props.invoice.client.state}
+              Place of Supply: {props.invoice.placeOfSupply || "-"}
             </Text>
           </View>
 
@@ -703,7 +703,7 @@ export function InvoicePDF(props: {
               Code: {props.invoice.client.stateCode || "-"}
             </Text>
             <Text style={styles.addressLine}>
-              Place of Supply: {props.invoice.placeOfSupply || props.invoice.client.state}
+              Place of Supply: {props.invoice.placeOfSupply || "-"}
             </Text>
           </View>
         </View>
@@ -749,7 +749,7 @@ export function InvoicePDF(props: {
                 <View style={styles.colGst}><Text>{itemGstRate}</Text></View>
                 <View style={styles.colUom}><Text>{item.unit || ""}</Text></View>
                 <View style={styles.colQty}><Text>{hasData ? item.qty : ""}</Text></View>
-                <View style={styles.colRate}><Text>{hasData ? inr(item.rate) : ""}</Text></View>
+                <View style={styles.colRate}><Text>{hasData ? inr(Number(item.rate) || 0) : ""}</Text></View>
                 <View style={styles.colAmt}><Text>{hasData ? inr(lineAmt) : ""}</Text></View>
               </View>
             );

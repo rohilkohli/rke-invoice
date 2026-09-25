@@ -27,14 +27,19 @@ function clampNumber(n: unknown) {
   return Number.isFinite(num) ? num : 0;
 }
 
+function normalizeNumberish(value: unknown): number | string {
+  if (typeof value === "string") return value;
+  return Math.max(0, clampNumber(value));
+}
+
 function normalizeLineItem(item: LineItemForm): LineItemForm {
   return {
     sno: Math.max(1, Math.trunc(clampNumber(item.sno))),
     description: item.description ?? "",
     hsnSac: item.hsnSac ?? "",
     unit: item.unit ?? "",
-    qty: Math.max(0, clampNumber(item.qty)),
-    rate: Math.max(0, clampNumber(item.rate)),
+    qty: normalizeNumberish(item.qty),
+    rate: normalizeNumberish(item.rate),
   };
 }
 

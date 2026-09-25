@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   description: "GST tax invoice generation for M/S Radha Kishan Enterprises",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{

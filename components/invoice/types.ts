@@ -20,8 +20,8 @@ export type LineItemForm = {
   description: string;
   hsnSac?: string;
   unit: string;
-  qty: number;
-  rate: number;
+  qty: number | string;
+  rate: number | string;
 
   equipmentId?: number | null;
   meterStart?: number | null;
@@ -68,4 +68,3 @@ export type InvoiceFormData = {
   lineItems: LineItemForm[];
   signature: SignatureForm;
 };
-
