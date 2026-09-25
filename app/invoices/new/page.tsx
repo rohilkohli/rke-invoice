@@ -37,7 +37,7 @@ export default async function NewInvoicePage() {
     stateCode: client.stateCode,
     transportMode: "",
     vehicleNo: "",
-    placeOfSupply: client.state,
+    placeOfSupply: "",
     status: "DRAFT",
     reverseCharge: false,
     cgstRate: Number(company.defaultCgstRate),

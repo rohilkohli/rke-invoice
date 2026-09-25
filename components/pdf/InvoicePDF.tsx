@@ -687,7 +687,7 @@ export function InvoicePDF(props: {
               Code: {props.invoice.client.shipToStateCode || props.invoice.client.stateCode || "-"}
             </Text>
             <Text style={styles.addressLine}>
-              Place of Supply: {props.invoice.placeOfSupply || props.invoice.client.state}
+              Place of Supply: {props.invoice.placeOfSupply || "-"}
             </Text>
           </View>
 
@@ -703,7 +703,7 @@ export function InvoicePDF(props: {
               Code: {props.invoice.client.stateCode || "-"}
             </Text>
             <Text style={styles.addressLine}>
-              Place of Supply: {props.invoice.placeOfSupply || props.invoice.client.state}
+              Place of Supply: {props.invoice.placeOfSupply || "-"}
             </Text>
           </View>
         </View>
