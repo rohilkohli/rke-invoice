@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Save, ClipboardList, Building2, Truck, Percent, Sparkles, ChevronLeft, ChevronRight, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { scanInvoiceAction } from "@/app/actions/ocr";
@@ -48,6 +48,10 @@ export function InvoiceForm(props: {
   const setField = useInvoiceStore((s) => s.setField);
   const setClientField = useInvoiceStore((s) => s.setClientField);
   const setInvoice = useInvoiceStore((s) => s.setInvoice);
+  const sortedIndianStates = useMemo(
+    () => [...INDIAN_STATES].sort((a, b) => a.name.localeCompare(b.name)),
+    []
+  );
 
   const selectedStateName =
     INDIAN_STATES.find(
@@ -456,7 +460,7 @@ export function InvoiceForm(props: {
                       <SelectValue placeholder="Select State" />
                     </SelectTrigger>
                     <SelectContent>
-                      {INDIAN_STATES.map((s) => (
+                      {sortedIndianStates.map((s) => (
                         <SelectItem key={s.code} value={s.name}>
                           {s.name}
                         </SelectItem>
@@ -481,7 +485,7 @@ export function InvoiceForm(props: {
                       <SelectValue placeholder="Code" />
                     </SelectTrigger>
                     <SelectContent>
-                      {INDIAN_STATES.map((s) => (
+                      {sortedIndianStates.map((s) => (
                         <SelectItem key={s.code} value={s.code}>
                           {s.code}
                         </SelectItem>
@@ -626,7 +630,7 @@ export function InvoiceForm(props: {
                       <SelectValue placeholder="Select State" />
                     </SelectTrigger>
                     <SelectContent>
-                      {INDIAN_STATES.map((s) => (
+                      {sortedIndianStates.map((s) => (
                         <SelectItem key={s.code} value={s.name}>
                           {s.name}
                         </SelectItem>
@@ -651,7 +655,7 @@ export function InvoiceForm(props: {
                       <SelectValue placeholder="Code" />
                     </SelectTrigger>
                     <SelectContent>
-                      {INDIAN_STATES.map((s) => (
+                      {sortedIndianStates.map((s) => (
                         <SelectItem key={s.code} value={s.code}>
                           {s.code}
                         </SelectItem>
@@ -1107,7 +1111,7 @@ export function InvoiceForm(props: {
                   <SelectValue placeholder="Select State of Supply" />
                 </SelectTrigger>
                 <SelectContent>
-                  {INDIAN_STATES.map((s) => (
+                  {sortedIndianStates.map((s) => (
                     <SelectItem key={s.code} value={s.name}>
                       {s.name}
                     </SelectItem>
@@ -1132,7 +1136,7 @@ export function InvoiceForm(props: {
                   <SelectValue placeholder="Code" />
                 </SelectTrigger>
                 <SelectContent>
-                  {INDIAN_STATES.map((s) => (
+                  {sortedIndianStates.map((s) => (
                     <SelectItem key={s.code} value={s.code}>
                       {s.code}
                     </SelectItem>
@@ -1200,7 +1204,7 @@ export function InvoiceForm(props: {
                   <SelectValue placeholder="Select State" />
                 </SelectTrigger>
                 <SelectContent>
-                  {INDIAN_STATES.map((s) => (
+                  {sortedIndianStates.map((s) => (
                     <SelectItem key={s.code} value={s.name}>
                       {s.name}
                     </SelectItem>
@@ -1225,7 +1229,7 @@ export function InvoiceForm(props: {
                   <SelectValue placeholder="Code" />
                 </SelectTrigger>
                 <SelectContent>
-                  {INDIAN_STATES.map((s) => (
+                  {sortedIndianStates.map((s) => (
                     <SelectItem key={s.code} value={s.code}>
                       {s.code}
                     </SelectItem>
