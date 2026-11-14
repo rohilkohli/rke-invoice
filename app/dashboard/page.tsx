@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TrendingUp, CreditCard, Clock, Plus } from "lucide-react";
+import { TrendingUp, Plus } from "lucide-react";
 
 import { prisma } from "@/lib/db";
 import { getOrCreateCompanySettings } from "@/lib/bootstrap";
@@ -34,7 +34,7 @@ export default async function DashboardPage() {
         userId: user.id,
         invoiceDate: { gte: monthStart },
       },
-      select: { grandTotal: true, status: true },
+      select: { grandTotal: true },
     }),
     // Table query: most recent 100 invoices for display
     prisma.invoice.findMany({
@@ -49,10 +49,6 @@ export default async function DashboardPage() {
     (sum, i) => sum + Number(i.grandTotal),
     0,
   );
-  const totalPaid = monthlyInvoices
-    .filter((i) => i.status === "PAID")
-    .reduce((sum, i) => sum + Number(i.grandTotal), 0);
-  const pending = totalInvoiced - totalPaid;
 
   const format = (n: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -70,24 +66,6 @@ export default async function DashboardPage() {
       color: "text-blue-600 dark:text-blue-400",
       bg: "bg-blue-500/10",
       border: "border-blue-500/50 dark:border-blue-500/40",
-    },
-    {
-      label: "Paid",
-      value: format(totalPaid),
-      subtext: "This month",
-      icon: CreditCard,
-      color: "text-emerald-600 dark:text-emerald-400",
-      bg: "bg-emerald-500/10",
-      border: "border-emerald-500/50 dark:border-emerald-500/40",
-    },
-    {
-      label: "Pending",
-      value: format(pending),
-      subtext: "Outstanding",
-      icon: Clock,
-      color: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-500/10",
-      border: "border-amber-500/60 dark:border-amber-500/40",
     },
   ];
 
