@@ -1,4 +1,4 @@
-import { getNextInvoiceNo, getOrCreateCompanySettings, getOrCreateDefaultClient } from "@/lib/bootstrap";
+import { getOrCreateCompanySettings, getOrCreateDefaultClient } from "@/lib/bootstrap";
 import type { InvoiceFormData } from "@/components/invoice/types";
 import { InvoiceEditor } from "@/components/invoice/InvoiceEditor";
 import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
@@ -14,16 +14,16 @@ export default async function NewInvoicePage() {
     redirect("/login");
   }
 
-  const [company, client, invoiceNo] = await Promise.all([
+  const [company, client] = await Promise.all([
     getOrCreateCompanySettings(user.id),
     getOrCreateDefaultClient(user.id),
-    getNextInvoiceNo(user.id),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
 
   const initialInvoice: InvoiceFormData = {
-    invoiceNo,
+    // Left blank on purpose: the invoice number is always typed in by the user.
+    invoiceNo: "",
     invoiceDate: today,
     poNo: "",
     referenceNo: "",
@@ -61,9 +61,11 @@ export default async function NewInvoicePage() {
         sno: 1,
         description: "Rental service of heavy engineering equipments",
         hsnSac: "",
-        unit: "Nos",
-        qty: 1,
-        rate: 0,
+        // Unit, Qty, Rate and Amount all start empty and are typed in by the user.
+        unit: "",
+        qty: "",
+        rate: "",
+        amount: "",
       },
     ],
     signature: null,

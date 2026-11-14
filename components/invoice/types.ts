@@ -19,9 +19,12 @@ export type LineItemForm = {
   sno: number;
   description: string;
   hsnSac?: string;
+  // Free text, printed exactly as typed. Nothing is ever calculated from these three.
   unit: string;
-  qty: number | string;
-  rate: number | string;
+  qty: string;
+  rate: string;
+  // Typed by the user (e.g. "1,50,000"); the only line figure that feeds the totals.
+  amount: string;
 
   equipmentId?: number | null;
   meterStart?: number | null;

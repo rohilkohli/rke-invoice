@@ -4,7 +4,7 @@ import { InvoicePDF } from "@/components/pdf/InvoicePDF";
 import type { InvoiceFormData } from "@/components/invoice/types";
 import type { CompanySettingsPreview } from "@/components/invoice/InvoicePreview";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
-import { calculateTotals, getTaxMode } from "@/lib/calculations";
+import { calculateTotals, getTaxMode, legacyDecimalText } from "@/lib/calculations";
 import { generateQrPngDataUrl } from "@/lib/qr";
 import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
 
@@ -51,8 +51,9 @@ export async function generateInvoicePdfBase64Server(
       description: string;
       hsnSac?: string | null;
       unit: string;
-      qty: unknown;
-      rate: unknown;
+      qty: string;
+      rate: string;
+      amount: unknown;
       equipmentId?: number | null;
       meterStart?: unknown | null;
       meterEnd?: unknown | null;
@@ -123,8 +124,9 @@ export async function generateInvoicePdfBase64Server(
       description: li.description,
       hsnSac: li.hsnSac ?? undefined,
       unit: li.unit,
-      qty: Number(li.qty) || 0,
-      rate: Number(li.rate) || 0,
+      qty: legacyDecimalText(li.qty),
+      rate: legacyDecimalText(li.rate, { money: true }),
+      amount: String(Number(li.amount) || 0),
       equipmentId: li.equipmentId ?? undefined,
       meterStart: li.meterStart != null ? Number(li.meterStart) : undefined,
       meterEnd: li.meterEnd != null ? Number(li.meterEnd) : undefined,
@@ -165,7 +167,7 @@ export async function generateInvoicePdfBase64Server(
     const companyStateCode = companyData.stateCode ?? DEFAULT_COMPANY_STATE.stateCode;
     const taxMode = getTaxMode(companyStateCode, invoiceData.client.stateCode);
     const totals = calculateTotals({
-      items: invoiceData.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+      items: invoiceData.lineItems.map((li) => ({ amount: li.amount })),
       cgstRate: invoiceData.cgstRate,
       sgstRate: invoiceData.sgstRate,
       igstRate: invoiceData.igstRate,

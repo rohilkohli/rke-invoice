@@ -12,9 +12,9 @@ import type { InvoiceFormData } from "@/components/invoice/types";
 import type { CompanySettingsPreview } from "@/components/invoice/InvoicePreview";
 import {
   amountInWordsINR,
-  calculateLineAmount,
   calculateTotals,
   getTaxMode,
+  lineAmount,
 } from "@/lib/calculations";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
 
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   colDesc: {
-    flex: 3.5,
+    flex: 3.1,
     paddingHorizontal: 4,
     borderRightWidth: 0.5,
     borderRightColor: "#000",
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   colQty: {
-    flex: 0.5,
+    flex: 0.7,
     textAlign: "right",
     paddingRight: 4,
     borderRightWidth: 0.5,
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   colRate: {
-    flex: 0.9,
+    flex: 1.1,
     textAlign: "right",
     paddingRight: 4,
     borderRightWidth: 0.5,
@@ -483,7 +483,7 @@ export function InvoicePDF(props: {
   const companyStateCode = props.company.stateCode ?? DEFAULT_COMPANY_STATE.stateCode;
   const taxMode = getTaxMode(companyStateCode, props.invoice.client.stateCode);
   const totals = calculateTotals({
-    items: props.invoice.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+    items: props.invoice.lineItems.map((li) => ({ amount: li.amount })),
     cgstRate: props.invoice.cgstRate,
     sgstRate: props.invoice.sgstRate,
     igstRate: props.invoice.igstRate,
@@ -502,8 +502,9 @@ export function InvoicePDF(props: {
       description: "",
       hsnSac: "",
       unit: "",
-      qty: 0,
-      rate: 0,
+      qty: "",
+      rate: "",
+      amount: "",
     });
   }
 
@@ -522,7 +523,7 @@ export function InvoicePDF(props: {
 
   props.invoice.lineItems.forEach((item) => {
     const hsn = item.hsnSac || "998719";
-    const taxableValue = (Number(item.qty) || 0) * (Number(item.rate) || 0);
+    const taxableValue = lineAmount(item.amount);
 
     let cgstAmt = 0;
     let sgstAmt = 0;
@@ -717,13 +718,13 @@ export function InvoicePDF(props: {
             <View style={styles.colGst}><Text>GST Rate</Text></View>
             <View style={styles.colUom}><Text>UOM</Text></View>
             <View style={styles.colQty}><Text>Qty</Text></View>
-            <View style={styles.colRate}><Text>Rate (₹)</Text></View>
+            <View style={styles.colRate}><Text>Rate</Text></View>
             <View style={styles.colAmt}><Text>Amount (₹)</Text></View>
           </View>
 
           {lineItemsToDisplay.map((item, idx) => {
             const hasData = Boolean(item.description);
-            const lineAmt = hasData ? calculateLineAmount(item.qty, item.rate) : 0;
+            const lineAmt = hasData ? lineAmount(item.amount) : 0;
             const isLast = idx === lineItemsToDisplay.length - 1;
 
             let itemGstRate = "-";
@@ -749,7 +750,7 @@ export function InvoicePDF(props: {
                 <View style={styles.colGst}><Text>{itemGstRate}</Text></View>
                 <View style={styles.colUom}><Text>{item.unit || ""}</Text></View>
                 <View style={styles.colQty}><Text>{hasData ? item.qty : ""}</Text></View>
-                <View style={styles.colRate}><Text>{hasData ? inr(Number(item.rate) || 0) : ""}</Text></View>
+                <View style={styles.colRate}><Text>{hasData ? item.rate : ""}</Text></View>
                 <View style={styles.colAmt}><Text>{hasData ? inr(lineAmt) : ""}</Text></View>
               </View>
             );

@@ -1,12 +1,54 @@
 export type TaxMode = "INTRA_STATE" | "INTER_STATE";
 
+type TypedAmount = number | string | null | undefined;
+
+/**
+ * A line reaches the totals only through the amount the user typed.
+ * Unit, Qty and Rate are free text and are never part of any calculation.
+ */
 export type LineItemInput = {
-  qty: number | string;
-  rate: number | string;
+  amount: TypedAmount;
 };
 
 export function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Reads an amount the way people type it: "150000", "1,50,000.50", "₹ 2,500".
+ * Returns NaN for a blank box or anything that is not a plain non-negative number,
+ * so callers can tell "nothing usable typed" apart from a real 0.
+ */
+export function parseAmount(value: TypedAmount): number {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value >= 0 ? value : Number.NaN;
+  }
+  const cleaned = String(value ?? "").replace(/[₹,\s]/g, "");
+  return /^(\d+\.?\d*|\.\d+)$/.test(cleaned) ? Number(cleaned) : Number.NaN;
+}
+
+/** What a line adds to the invoice: the typed amount rounded to paise, or 0 if it is not a number. */
+export function lineAmount(value: TypedAmount): number {
+  const amount = parseAmount(value);
+  return Number.isNaN(amount) ? 0 : roundMoney(amount);
+}
+
+/**
+ * Qty and Rate were DECIMAL(65,30) columns before they became free text, so rows saved
+ * back then read as "250.000000000000000000000000000000". Only that exact shape is
+ * tidied; anything a user typed is returned untouched. `money` keeps two decimals
+ * when there is a fractional part ("1500.50", not "1500.5").
+ */
+export function legacyDecimalText(
+  value: string | null | undefined,
+  opts?: { money?: boolean },
+): string {
+  const text = value ?? "";
+  if (!/^\d+\.\d{30}$/.test(text)) return text;
+  const trimmed = text.replace(/\.?0+$/, "");
+  if (!opts?.money) return trimmed;
+  const [whole, fraction] = trimmed.split(".");
+  return fraction ? `${whole}.${fraction.padEnd(2, "0")}` : whole;
 }
 
 export function getTaxMode(
@@ -16,13 +58,6 @@ export function getTaxMode(
   const a = (companyStateCode ?? "").trim();
   const b = (clientStateCode ?? "").trim();
   return a && b && a === b ? "INTRA_STATE" : "INTER_STATE";
-}
-
-export function calculateLineAmount(
-  qty: number | string,
-  rate: number | string,
-): number {
-  return roundMoney((Number(qty) || 0) * (Number(rate) || 0));
 }
 
 export function calculateTotals(params: {
@@ -39,10 +74,7 @@ export function calculateTotals(params: {
   grandTotal: number;
 } {
   const totalBeforeTax = roundMoney(
-    (params.items ?? []).reduce(
-      (sum, item) => sum + calculateLineAmount(item.qty, item.rate),
-      0,
-    ),
+    (params.items ?? []).reduce((sum, item) => sum + lineAmount(item.amount), 0),
   );
 
   let cgst = 0;

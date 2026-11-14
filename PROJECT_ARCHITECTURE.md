@@ -59,7 +59,7 @@ rke-invoice/
 │   ├── signature/              # Interactive drawn signature pad dialog
 │   └── ui/                     # Premium prebuilt shadcn-inspired interface primitives
 ├── lib/                        # Shared utilities and helper modules
-│   ├── bootstrap.ts            # Database bootstrapping, seed data, and invoice number sequencing
+│   ├── bootstrap.ts            # Database bootstrapping (default company settings and default client)
 │   ├── calculations.ts         # GST Tax computation rules and Indian Number-to-Words converter
 │   ├── db.ts                   # Cached global PrismaClient instantiation
 │   ├── defaults.ts             # Default parameters (e.g. M/S Radha Kishan Enterprises metadata)
@@ -146,8 +146,8 @@ erDiagram
         String description
         String hsnSac
         String unit
-        Decimal qty
-        Decimal rate
+        String qty
+        String rate
         Decimal amount
     }
 
@@ -166,7 +166,7 @@ erDiagram
 ### Key Schema Characteristics:
 1. **`Invoice`**: Tracks GST details (rates/amounts for CGST, SGST, IGST), reverse charge applicability, transportation/vehicle metadata, PO details, and billing periods.
 2. **`Client`**: Implements separation between *Billed-To* (corporate entity address) and *Shipped-To* (physical plant/site address, crucial for logistics operations).
-3. **`LineItem`**: Leverages a composite unique index `@@unique([invoiceId, sno])` ensuring serial number ordering remains consistent and non-conflicting within an invoice.
+3. **`LineItem`**: Leverages a composite unique index `@@unique([invoiceId, sno])` ensuring serial number ordering remains consistent and non-conflicting within an invoice. `unit`, `qty` and `rate` are free text printed exactly as typed; `amount` is typed by the user and is the only line figure used in totals.
 4. **`CompanySettings`**: Houses all primary metadata for Radha Kishan Enterprises, including default GST rates, banking/UPI details, corporate address, and terms.
 5. **`Signature`**: One-to-one relationship with `Invoice`, capturing drawn, uploaded, or typed signature assets.
 
@@ -174,13 +174,16 @@ erDiagram
 
 ## 🧮 Core Business Logic & Algorithms
 
+### 0. Line Amounts Are Typed, Not Calculated (`lib/calculations.ts`)
+Unit, Qty and Rate are descriptive free text (for example `26 Days`, `5,000 per day`) and take part in no formula. The user types each line's Amount; `parseAmount()` reads it (commas and a ₹ sign are accepted) and `calculateTotals()` adds up those amounts and applies GST. Meter Start / Meter End are stored and printed as notes and do not change Qty.
+
 ### 1. GST Tax Mode Selection (`lib/calculations.ts`)
 The application automatically determines tax structures using the **State Codes** of the supplier (RKE) and client:
 - **Intra-State (CGST + SGST)**: Applied if both state codes match (e.g., Uttar Pradesh to Uttar Pradesh, code `09`). Tax is divided equally (e.g. 9% CGST + 9% SGST).
 - **Inter-State (IGST)**: Applied if the client state code is different (e.g., Uttar Pradesh to Maharashtra, code `27`). An aggregate rate (e.g. 18% IGST) is applied directly.
 
-### 2. Auto-Sequenced Invoice Numbers (`lib/bootstrap.ts`)
-When creating a new invoice, the system scans existing invoices matching the company's active prefix (e.g. `RKE-2026-`). It parses the suffixes, identifies the current highest numeric value, increments it, and pads it to ensure a clean sequential identifier (e.g. `RKE-2026-001`, `RKE-2026-002`).
+### 2. Manual Invoice Numbers (`app/actions/invoices.ts`)
+Invoice numbers are never generated or pre-filled. The field starts blank on a new invoice, the user types the number, and it appears in the live PDF preview as it is typed. On save the server rejects a blank number and reports a number that is already used by another invoice, without writing anything.
 
 ### 3. Indian Number-to-Words Converter (`lib/calculations.ts`)
 To meet strict statutory requirements, the converter formats numbers according to the **Indian Numbering System** (Lakhs and Crores rather than Millions/Billions):

@@ -16,7 +16,8 @@
 - **Database access** is exclusively via `prisma` imported from `lib/db.ts`.
 - **Authentication** uses `requireSessionUser()` from `lib/auth.ts` — call it at the top of every server action and protected page.
 - **GST calculations** must only use functions from `lib/calculations.ts` — never compute tax amounts inline.
-- **Invoice numbers** are auto-sequenced via `getNextInvoiceNo()` in `lib/bootstrap.ts`.
+- **Line items**: Unit, Qty and Rate are free text, stored and printed exactly as typed, and must never be linked by a formula or derived from anything (not each other, not meter readings). Amount is typed by the user and is the only line figure that feeds totals — use `parseAmount()` / `lineAmount()` from `lib/calculations.ts`; never compute it as Qty × Rate.
+- **Invoice numbers** are typed in by the user. Never pre-fill or auto-generate one — the field starts blank, and `createInvoice` / `updateInvoice` reject blank and duplicate numbers.
 - **Component structure**: domain components in `components/<domain>/`, shared UI primitives in `components/ui/`.
 
 ## What NOT To Do

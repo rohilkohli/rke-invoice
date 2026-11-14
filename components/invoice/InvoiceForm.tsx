@@ -10,6 +10,7 @@ import {
   calculateTotals,
   formatINR,
   getTaxMode,
+  lineAmount,
 } from "@/lib/calculations";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
 import { INDIAN_STATES, getStateByCode } from "@/lib/states";
@@ -196,9 +197,11 @@ export function InvoiceForm(props: {
                   sno: li.sno ?? (idx + 1),
                   description: li.description ?? "",
                   hsnSac: li.hsnSac ?? "",
-                  unit: li.unit ?? "Nos",
-                  qty: Number(li.qty ?? 1),
-                  rate: Number(li.rate ?? 0),
+                  // Copied as printed on the scan; a figure the scan lacks stays blank for the user.
+                  unit: li.unit != null ? String(li.unit) : "",
+                  qty: li.qty != null ? String(li.qty) : "",
+                  rate: li.rate != null ? String(li.rate) : "",
+                  amount: li.amount != null ? String(li.amount) : "",
                 }))
               : invoice.lineItems,
           };
@@ -249,7 +252,7 @@ export function InvoiceForm(props: {
 
   const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, invoice.client.stateCode);
   const totals = calculateTotals({
-    items: invoice.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+    items: invoice.lineItems.map((li) => ({ amount: li.amount })),
     cgstRate: invoice.cgstRate,
     sgstRate: invoice.sgstRate,
     igstRate: invoice.igstRate,
@@ -274,8 +277,8 @@ export function InvoiceForm(props: {
         if (!invoice.client.state?.trim()) return "Client state is required (Step 2).";
         return null;
       case 3:
-        if (!invoice.lineItems.some((li) => li.description.trim() && Number(li.rate) > 0))
-          return "At least one line item with a description and rate is required (Step 3).";
+        if (!invoice.lineItems.some((li) => li.description.trim() && lineAmount(li.amount) > 0))
+          return "At least one line item with a description and an amount is required (Step 3).";
         return null;
       default:
         return null;
@@ -371,7 +374,7 @@ export function InvoiceForm(props: {
                 <Input
                   value={invoice.invoiceNo}
                   onChange={(e) => setField("invoiceNo", e.target.value)}
-                  placeholder="RKE-2026-001"
+                  placeholder="Enter invoice number"
                 />
               </div>
               <div className="space-y-2">
@@ -987,7 +990,7 @@ export function InvoiceForm(props: {
               <Input
                 value={invoice.invoiceNo}
                 onChange={(e) => setField("invoiceNo", e.target.value)}
-                placeholder="RKE-2026-001"
+                placeholder="Enter invoice number"
               />
             </div>
             <div className="space-y-2">

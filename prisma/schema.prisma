@@ -111,9 +111,11 @@ model LineItem {
   description String
   hsnSac      String?
 
+  // Unit, Qty and Rate are free text, printed exactly as typed. Nothing is calculated from them.
   unit        String
-  qty         Decimal  @default(0)
-  rate        Decimal  @default(0)
+  qty         String   @default("")
+  rate        String   @default("")
+  // Typed in by the user; the only line figure that feeds the invoice totals.
   amount      Decimal  @default(0)
 
   equipmentId Int?

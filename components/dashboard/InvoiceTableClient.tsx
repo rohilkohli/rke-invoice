@@ -160,7 +160,7 @@ export function InvoiceTableClient(props: {
         const inv = invoices[i]!;
         const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, inv.client.stateCode);
         const totals = calculateTotals({
-          items: inv.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+          items: inv.lineItems.map((li) => ({ amount: li.amount })),
           cgstRate: inv.cgstRate,
           sgstRate: inv.sgstRate,
           igstRate: inv.igstRate,
@@ -228,7 +228,7 @@ export function InvoiceTableClient(props: {
 
       const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, inv.client.stateCode);
       const totals = calculateTotals({
-        items: inv.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+        items: inv.lineItems.map((li) => ({ amount: li.amount })),
         cgstRate: inv.cgstRate,
         sgstRate: inv.sgstRate,
         igstRate: inv.igstRate,

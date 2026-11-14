@@ -4,6 +4,7 @@ import { InvoiceEditor } from "@/components/invoice/InvoiceEditor";
 import type { InvoiceFormData } from "@/components/invoice/types";
 import { getOrCreateCompanySettings } from "@/lib/bootstrap";
 import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
+import { legacyDecimalText } from "@/lib/calculations";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -80,8 +81,12 @@ export default async function InvoiceByIdPage(props: {
       description: li.description,
       hsnSac: li.hsnSac ?? "",
       unit: li.unit,
-      qty: Number(li.qty),
-      rate: Number(li.rate),
+      qty: legacyDecimalText(li.qty),
+      rate: legacyDecimalText(li.rate, { money: true }),
+      amount: String(Number(li.amount)),
+      equipmentId: li.equipmentId,
+      meterStart: li.meterStart != null ? Number(li.meterStart) : null,
+      meterEnd: li.meterEnd != null ? Number(li.meterEnd) : null,
     })),
     signature: invoice.signature
       ? { dataUrl: invoice.signature.dataUrl, type: invoice.signature.type }

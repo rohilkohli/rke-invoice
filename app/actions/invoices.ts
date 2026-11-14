@@ -5,10 +5,9 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
-import { getNextInvoiceNo, getOrCreateCompanySettings } from "@/lib/bootstrap";
+import { getOrCreateCompanySettings } from "@/lib/bootstrap";
 import { requireSessionUser } from "@/lib/auth";
 import {
-  calculateLineAmount,
   calculateTotals,
   getTaxMode,
   amountInWordsINR,
@@ -21,9 +20,12 @@ const lineItemSchema = z.object({
   sno: z.number().int().min(1),
   description: z.string().min(1),
   hsnSac: z.string().optional().nullable(),
-  unit: z.string().min(1),
-  qty: z.number().nonnegative(),
-  rate: z.number().nonnegative(),
+  // Free text, stored and printed exactly as typed. Never used in a calculation.
+  unit: z.string().max(60),
+  qty: z.string().max(60),
+  rate: z.string().max(60),
+  // Typed by the user; the only line figure that feeds the totals.
+  amount: z.number().nonnegative(),
   equipmentId: z.number().int().optional().nullable(),
   meterStart: z.number().optional().nullable(),
   meterEnd: z.number().optional().nullable(),
@@ -31,7 +33,8 @@ const lineItemSchema = z.object({
 
 const invoiceSchema = z.object({
   id: z.number().int().optional(),
-  invoiceNo: z.string().min(1),
+  // Always typed in by the user — never generated here. Blank is rejected.
+  invoiceNo: z.string().trim().min(1),
   invoiceDate: z.string().min(1),
   poNo: z.string().optional().nullable(),
   referenceNo: z.string().optional().nullable(),
@@ -91,28 +94,52 @@ function toDate(value: string | null | undefined) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function duplicateInvoiceNoError(invoiceNo: string) {
+  return `Invoice number "${invoiceNo}" is already used by another invoice. Enter a different number.`;
+}
+
+/** True only for the unique index on Invoice.invoiceNo (not e.g. a repeated line-item sno). */
+function isInvoiceNoClash(e: unknown) {
+  if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") return false;
+  const target = e.meta?.target;
+  return Array.isArray(target)
+    ? target.includes("invoiceNo")
+    : String(target ?? "").includes("invoiceNo");
+}
+
+/** True when another invoice (other than `exceptId`) already carries this number. */
+async function invoiceNoTaken(invoiceNo: string, exceptId?: number) {
+  const clash = await prisma.invoice.findUnique({
+    where: { invoiceNo },
+    select: { id: true },
+  });
+  return Boolean(clash && clash.id !== exceptId);
+}
+
 export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
   const user = await requireSessionUser();
   const parsed = invoiceSchema.omit({ id: true }).safeParse(input);
   if (!parsed.success) throw new Error("Invalid invoice payload");
 
   const data = parsed.data;
+  const invoiceNo = data.invoiceNo;
+
+  // Checked before anything is written, so a clash never leaves a half-saved client behind.
+  if (await invoiceNoTaken(invoiceNo)) {
+    return { success: false as const, error: duplicateInvoiceNoError(invoiceNo) };
+  }
 
   const settings = await getOrCreateCompanySettings(user.id);
   const companyStateCode = settings.stateCode ?? DEFAULT_COMPANY_STATE.stateCode;
   const taxMode = getTaxMode(companyStateCode, data.client.stateCode);
   const totals = calculateTotals({
-    items: data.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+    items: data.lineItems.map((li) => ({ amount: li.amount })),
     cgstRate: data.cgstRate,
     sgstRate: data.sgstRate,
     igstRate: data.igstRate,
     taxMode,
   });
   const amountInWords = amountInWordsINR(totals.grandTotal);
-
-  const invoiceNo = data.invoiceNo.trim()
-    ? data.invoiceNo.trim()
-    : await getNextInvoiceNo(user.id);
 
   const client = data.client.id
     ? await (async () => {
@@ -195,9 +222,9 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
           description: li.description,
           hsnSac: li.hsnSac ?? null,
           unit: li.unit,
-          qty: toDecimal(li.qty),
-          rate: toDecimal(li.rate),
-          amount: toDecimal(calculateLineAmount(li.qty, li.rate)),
+          qty: li.qty,
+          rate: li.rate,
+          amount: toDecimal(li.amount),
           equipmentId: li.equipmentId ?? null,
           meterStart: li.meterStart != null ? toDecimal(li.meterStart) : null,
           meterEnd: li.meterEnd != null ? toDecimal(li.meterEnd) : null,
@@ -213,13 +240,20 @@ export async function createInvoice(input: z.infer<typeof invoiceSchema>) {
         : undefined,
     },
     select: { id: true },
+  }).catch((e: unknown) => {
+    // Two saves racing for the same number: the unique index has the final say.
+    if (isInvoiceNoClash(e)) return null;
+    throw e;
   });
+  if (!invoice) {
+    return { success: false as const, error: duplicateInvoiceNoError(invoiceNo) };
+  }
 
   revalidatePath("/dashboard");
   syncInvoiceToGDrive(invoice.id).catch((err) => {
     console.error("[GDrive Sync Error]", err);
   });
-  return { success: true, id: invoice.id };
+  return { success: true as const, id: invoice.id };
 }
 
 export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
@@ -235,11 +269,16 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
   });
   if (!existingInvoice) throw new Error("Invoice not found or access denied");
 
+  const invoiceNo = data.invoiceNo;
+  if (await invoiceNoTaken(invoiceNo, existingInvoice.id)) {
+    return { ok: false as const, error: duplicateInvoiceNoError(invoiceNo) };
+  }
+
   const settings = await getOrCreateCompanySettings(user.id);
   const companyStateCode = settings.stateCode ?? DEFAULT_COMPANY_STATE.stateCode;
   const taxMode = getTaxMode(companyStateCode, data.client.stateCode);
   const totals = calculateTotals({
-    items: data.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+    items: data.lineItems.map((li) => ({ amount: li.amount })),
     cgstRate: data.cgstRate,
     sgstRate: data.sgstRate,
     igstRate: data.igstRate,
@@ -286,7 +325,7 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
         },
       });
 
-  await prisma.$transaction(
+  const racedForNumber = await prisma.$transaction(
     async (tx) => {
       await tx.lineItem.deleteMany({ where: { invoiceId: data.id } });
       await tx.signature.deleteMany({ where: { invoiceId: data.id } });
@@ -294,7 +333,7 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
       await tx.invoice.update({
         where: { id: existingInvoice.id },
         data: {
-          invoiceNo: data.invoiceNo.trim(),
+          invoiceNo,
           invoiceDate: new Date(data.invoiceDate),
           poNo: data.poNo ?? null,
           referenceNo: data.referenceNo ?? null,
@@ -333,9 +372,9 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
               description: li.description,
               hsnSac: li.hsnSac ?? null,
               unit: li.unit,
-              qty: toDecimal(li.qty),
-              rate: toDecimal(li.rate),
-              amount: toDecimal(calculateLineAmount(li.qty, li.rate)),
+              qty: li.qty,
+              rate: li.rate,
+              amount: toDecimal(li.amount),
               equipmentId: li.equipmentId ?? null,
               meterStart: li.meterStart != null ? toDecimal(li.meterStart) : null,
               meterEnd: li.meterEnd != null ? toDecimal(li.meterEnd) : null,
@@ -356,14 +395,24 @@ export async function updateInvoice(input: z.infer<typeof invoiceSchema>) {
       maxWait: 10000,
       timeout: 20000,
     }
+  ).then(
+    () => false,
+    (e: unknown) => {
+      // Rolled back by the transaction; only a number clash is reported, the rest still throws.
+      if (isInvoiceNoClash(e)) return true;
+      throw e;
+    },
   );
+  if (racedForNumber) {
+    return { ok: false as const, error: duplicateInvoiceNoError(invoiceNo) };
+  }
 
   revalidatePath("/dashboard");
   revalidatePath(`/invoices/${data.id}`);
   syncInvoiceToGDrive(existingInvoice.id).catch((err) => {
     console.error("[GDrive Sync Error]", err);
   });
-  return { ok: true };
+  return { ok: true as const };
 }
 
 export async function deleteInvoice(id: number) {

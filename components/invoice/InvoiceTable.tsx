@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Trash2, Plus } from "lucide-react";
 
-import { calculateLineAmount, formatINR } from "@/lib/calculations";
+import { parseAmount } from "@/lib/calculations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +37,14 @@ function validateHsnSac(code: string): { valid: boolean; warning: string | null 
   return { valid: true, warning: null };
 }
 
+// Unit, Qty and Rate are free text: printed as typed and never used in a calculation.
+const FREE_TEXT_MAX = 60;
+
+/** Something is typed in the Amount box, but it is not a usable number. */
+function amountIsInvalid(amount: string) {
+  return amount.trim() !== "" && Number.isNaN(parseAmount(amount));
+}
+
 function DecimalInput({
   value,
   onChange,
@@ -66,6 +74,11 @@ function DecimalInput({
       onChange={(e) => {
         const str = e.target.value;
         setRaw(str);
+        // Emptying the box clears the value instead of snapping back on blur.
+        if (str.trim() === "") {
+          onChange(0);
+          return;
+        }
         const num = parseFloat(str);
         if (!isNaN(num)) onChange(num);
       }}
@@ -120,7 +133,7 @@ export function InvoiceTable() {
 
         <div className="space-y-3">
           {lineItems.map((li, idx) => {
-            const amount = calculateLineAmount(li.qty, li.rate);
+            const amountInvalid = amountIsInvalid(li.amount);
             return (
               <div
                 key={`${li.sno}-${idx}`}
@@ -157,22 +170,14 @@ export function InvoiceTable() {
                       <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Meter Start</label>
                       <DecimalInput
                         value={li.meterStart ?? 0}
-                        onChange={(n) => {
-                          const mStart = n || null;
-                          const qty = (li.meterEnd ?? 0) - (mStart ?? 0);
-                          setLineItem(idx, { meterStart: mStart, qty: qty > 0 ? qty : li.qty });
-                        }}
+                        onChange={(n) => setLineItem(idx, { meterStart: n || null })}
                       />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Meter End</label>
                       <DecimalInput
                         value={li.meterEnd ?? 0}
-                        onChange={(n) => {
-                          const mEnd = n || null;
-                          const qty = (mEnd ?? 0) - (li.meterStart ?? 0);
-                          setLineItem(idx, { meterEnd: mEnd, qty: qty > 0 ? qty : li.qty });
-                        }}
+                        onChange={(n) => setLineItem(idx, { meterEnd: n || null })}
                       />
                     </div>
                   </div>
@@ -199,6 +204,7 @@ export function InvoiceTable() {
                     <Input
                       value={li.unit}
                       placeholder="Unit"
+                      maxLength={FREE_TEXT_MAX}
                       onChange={(e) => setLineItem(idx, { unit: e.target.value })}
                     />
                   </div>
@@ -208,22 +214,34 @@ export function InvoiceTable() {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Qty</label>
                     <Input
-                      value={String(li.qty ?? "")}
+                      value={li.qty}
+                      maxLength={FREE_TEXT_MAX}
                       onChange={(e) => setLineItem(idx, { qty: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Rate</label>
                     <Input
-                      value={String(li.rate ?? "")}
+                      value={li.rate}
+                      maxLength={FREE_TEXT_MAX}
                       onChange={(e) => setLineItem(idx, { rate: e.target.value })}
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
-                  <span className="text-muted-foreground">Line Total</span>
-                  <span className="font-semibold tabular-nums">{formatINR(amount)}</span>
+                <div className="space-y-1.5 border-t border-border pt-3">
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Amount (₹)</label>
+                  <Input
+                    className="text-right font-semibold tabular-nums"
+                    inputMode="decimal"
+                    placeholder="Type the amount"
+                    value={li.amount}
+                    aria-invalid={amountInvalid}
+                    onChange={(e) => setLineItem(idx, { amount: e.target.value })}
+                  />
+                  {amountInvalid ? (
+                    <p className="text-[10px] text-destructive leading-tight">Amount must be a number.</p>
+                  ) : null}
                 </div>
               </div>
             );
@@ -257,17 +275,17 @@ export function InvoiceTable() {
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="w-14 font-medium">#</TableHead>
               <TableHead className="font-medium">Description</TableHead>
-              <TableHead className="w-28 font-medium">HSN/SAC</TableHead>
+              <TableHead className="w-24 font-medium">HSN/SAC</TableHead>
               <TableHead className="w-20 font-medium">Unit</TableHead>
               <TableHead className="w-24 text-right font-medium">Qty</TableHead>
-              <TableHead className="w-28 text-right font-medium">Rate</TableHead>
-              <TableHead className="w-32 text-right font-medium">Amount</TableHead>
+              <TableHead className="w-32 text-right font-medium">Rate</TableHead>
+              <TableHead className="w-32 text-right font-medium">Amount (₹)</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {lineItems.map((li, idx) => {
-              const amount = calculateLineAmount(li.qty, li.rate);
+              const amountInvalid = amountIsInvalid(li.amount);
               return (
                 <TableRow key={`${li.sno}-${idx}`} className="group">
                   <TableCell className="align-top pt-3.5 font-medium text-muted-foreground">
@@ -285,23 +303,15 @@ export function InvoiceTable() {
                     />
                     <div className="flex gap-2">
                       <DecimalInput
-                        className="h-8 text-xs placeholder:text-[10px]"
+                        className="h-8 px-1.5 text-xs placeholder:text-[10px]"
                         value={li.meterStart ?? 0}
-                        onChange={(n) => {
-                          const mStart = n || null;
-                          const qty = (li.meterEnd ?? 0) - (mStart ?? 0);
-                          setLineItem(idx, { meterStart: mStart, qty: qty > 0 ? qty : li.qty });
-                        }}
+                        onChange={(n) => setLineItem(idx, { meterStart: n || null })}
                         placeholder="Meter Start"
                       />
                       <DecimalInput
-                        className="h-8 text-xs placeholder:text-[10px]"
+                        className="h-8 px-1.5 text-xs placeholder:text-[10px]"
                         value={li.meterEnd ?? 0}
-                        onChange={(n) => {
-                          const mEnd = n || null;
-                          const qty = (mEnd ?? 0) - (li.meterStart ?? 0);
-                          setLineItem(idx, { meterEnd: mEnd, qty: qty > 0 ? qty : li.qty });
-                        }}
+                        onChange={(n) => setLineItem(idx, { meterEnd: n || null })}
                         placeholder="Meter End"
                       />
                     </div>
@@ -326,25 +336,43 @@ export function InvoiceTable() {
                     <Input
                       value={li.unit}
                       placeholder="Unit"
+                      maxLength={FREE_TEXT_MAX}
                       onChange={(e) => setLineItem(idx, { unit: e.target.value })}
                     />
                   </TableCell>
                   <TableCell className="align-top pt-2">
                     <Input
                       className="text-right"
-                      value={String(li.qty ?? "")}
+                      value={li.qty}
+                      maxLength={FREE_TEXT_MAX}
+                      aria-label={`Quantity, line ${idx + 1}`}
                       onChange={(e) => setLineItem(idx, { qty: e.target.value })}
                     />
                   </TableCell>
                   <TableCell className="align-top pt-2">
                     <Input
                       className="text-right"
-                      value={String(li.rate ?? "")}
+                      value={li.rate}
+                      maxLength={FREE_TEXT_MAX}
+                      aria-label={`Rate, line ${idx + 1}`}
                       onChange={(e) => setLineItem(idx, { rate: e.target.value })}
                     />
                   </TableCell>
-                  <TableCell className="align-top pt-3.5 text-right font-medium tabular-nums">
-                    {formatINR(amount)}
+                  <TableCell className="align-top pt-2">
+                    <Input
+                      className="text-right font-medium tabular-nums"
+                      inputMode="decimal"
+                      placeholder="Amount"
+                      value={li.amount}
+                      aria-label={`Amount, line ${idx + 1}`}
+                      aria-invalid={amountInvalid}
+                      onChange={(e) => setLineItem(idx, { amount: e.target.value })}
+                    />
+                    {amountInvalid ? (
+                      <p className="text-[10px] text-destructive mt-0.5 leading-tight text-right">
+                        Must be a number.
+                      </p>
+                    ) : null}
                   </TableCell>
                   <TableCell className="align-top pt-2 text-right">
                     <Button

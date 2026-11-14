@@ -313,14 +313,6 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
             />
           </div>
           <div className="space-y-2 md:col-span-3">
-            <Label>Invoice Prefix / Format</Label>
-            <Input
-              value={form.invoicePrefix ?? ""}
-              onChange={(e) => setForm((p) => ({ ...p, invoicePrefix: e.target.value }))}
-              placeholder="RKE-2026-"
-            />
-          </div>
-          <div className="space-y-2 md:col-span-3">
             <Label>Terms & Conditions</Label>
             <Textarea
               value={form.termsAndConditions ?? ""}

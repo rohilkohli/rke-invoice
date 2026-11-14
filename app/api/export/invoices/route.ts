@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getOrCreateCompanySettings } from "@/lib/bootstrap";
 import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
 import { getSessionUser } from "@/lib/auth";
+import { legacyDecimalText } from "@/lib/calculations";
 import { hasAllRequestedIdsAuthorized } from "@/lib/authorization";
 
 export async function POST(req: Request) {
@@ -93,8 +94,11 @@ export async function POST(req: Request) {
         description: li.description,
         hsnSac: li.hsnSac ?? "",
         unit: li.unit,
-        qty: Number(li.qty),
-        rate: Number(li.rate),
+        qty: legacyDecimalText(li.qty),
+        rate: legacyDecimalText(li.rate, { money: true }),
+        amount: String(Number(li.amount)),
+        meterStart: li.meterStart != null ? Number(li.meterStart) : null,
+        meterEnd: li.meterEnd != null ? Number(li.meterEnd) : null,
       })),
       signature: inv.signature
         ? { dataUrl: inv.signature.dataUrl, type: inv.signature.type }

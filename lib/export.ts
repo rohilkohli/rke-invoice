@@ -2,7 +2,7 @@ import * as XLSX from "xlsx";
 
 import type { InvoiceFormData } from "@/components/invoice/types";
 import type { CompanySettingsPreview } from "@/components/invoice/InvoicePreview";
-import { amountInWordsINR, calculateTotals, getTaxMode, roundMoney } from "@/lib/calculations";
+import { amountInWordsINR, calculateTotals, getTaxMode, lineAmount } from "@/lib/calculations";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
 
 export function buildInvoiceWorkbook(params: {
@@ -22,7 +22,7 @@ export function buildInvoiceSheet(params: {
   const { invoice, company } = params;
   const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, invoice.client.stateCode);
   const totals = calculateTotals({
-    items: invoice.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+    items: invoice.lineItems.map((li) => ({ amount: li.amount })),
     cgstRate: invoice.cgstRate,
     sgstRate: invoice.sgstRate,
     igstRate: invoice.igstRate,
@@ -96,7 +96,7 @@ export function buildInvoiceSheet(params: {
 
   // Data rows
   invoice.lineItems.forEach((li, idx) => {
-    const totalAmt = roundMoney((Number(li.qty) || 0) * (Number(li.rate) || 0));
+    const totalAmt = lineAmount(li.amount);
     const gstRate = taxMode === "INTRA_STATE"
       ? `${invoice.cgstRate + invoice.sgstRate}%`
       : `${invoice.igstRate}%`;

@@ -11,7 +11,7 @@ import { syncSingleInvoiceAction } from "@/app/actions/gdrive";
 import { PdfActions } from "@/components/pdf/PdfActions";
 import { UPIQRCode } from "@/components/qr/UPIQRCode";
 import { XlsxActions } from "@/components/export/XlsxActions";
-import { calculateTotals, getTaxMode } from "@/lib/calculations";
+import { calculateTotals, getTaxMode, lineAmount, parseAmount } from "@/lib/calculations";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -77,15 +77,31 @@ export function InvoiceEditor(props: {
   }, [invoice.signature]);
 
   const onSave = () => {
+    // The invoice number is never generated for the user — it has to be typed in.
+    if (!invoice.invoiceNo.trim()) {
+      toast.error("Enter an invoice number before saving.");
+      return;
+    }
+    // Amounts are typed, not calculated, so a blank or non-numeric one has to be fixed first.
+    const badLine = invoice.lineItems.findIndex((li) => Number.isNaN(parseAmount(li.amount)));
+    if (badLine !== -1) {
+      toast.error(`Line ${badLine + 1}: type the amount as a number (for example 150000 or 1,50,000.50).`);
+      return;
+    }
+
     startTransition(async () => {
       try {
         const payload: InvoiceActionInput = {
           ...invoice,
+          invoiceNo: invoice.invoiceNo.trim(),
           lineItems: invoice.lineItems.map((li, idx) => ({
             ...li,
             sno: idx + 1,
-            qty: Number(li.qty) || 0,
-            rate: Number(li.rate) || 0,
+            // Sent as typed; only the amount is a number.
+            unit: li.unit.trim(),
+            qty: li.qty.trim(),
+            rate: li.rate.trim(),
+            amount: lineAmount(li.amount),
           })),
           cgstRate: Number(invoice.cgstRate) || 0,
           sgstRate: Number(invoice.sgstRate) || 0,
@@ -93,15 +109,19 @@ export function InvoiceEditor(props: {
         };
 
         if (invoice.id) {
-          await updateInvoice(payload);
-          toast.success("Invoice updated successfully");
+          const res = await updateInvoice(payload);
+          if (res.ok) {
+            toast.success("Invoice updated successfully");
+          } else {
+            toast.error(res.error);
+          }
         } else {
           const res = await createInvoice(payload);
-          if (res && res.success) {
+          if (res.success) {
             toast.success("Invoice created successfully");
             router.push(`/invoices/${res.id}`);
           } else {
-            throw new Error("Failed to save invoice");
+            toast.error(res.error);
           }
         }
       } catch (e) {
@@ -114,7 +134,7 @@ export function InvoiceEditor(props: {
   const qrPayload = useMemo(() => {
     const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, invoice.client.stateCode);
     const totals = calculateTotals({
-      items: invoice.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+      items: invoice.lineItems.map((li) => ({ amount: li.amount })),
       cgstRate: invoice.cgstRate,
       sgstRate: invoice.sgstRate,
       igstRate: invoice.igstRate,

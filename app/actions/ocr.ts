@@ -11,7 +11,8 @@ import { requireSessionUser } from "@/lib/auth";
 const INVOICE_PROMPT = `Extract invoice data from this image and return ONLY a valid JSON object matching the schema. Rules:
 - invoiceDate must be YYYY-MM-DD
 - stateCode: 2-digit string (e.g. "09" UP, "07" Delhi, "06" Haryana, "27" Maharashtra, "29" Karnataka)
-- unit defaults to "Nos" if missing
+- unit, qty and rate are copied exactly as printed (they may contain words, e.g. "26 Days"); use "" if not printed
+- amount is the line amount exactly as printed; never calculate it
 - reverseCharge is a boolean
 - Do not include markdown, commentary, or extra keys`.trim();
 
@@ -46,9 +47,10 @@ Use EXACTLY these field names (camelCase):
       "sno": "integer — serial number starting from 1",
       "description": "string — item description",
       "hsnSac": "string or null — HSN/SAC code",
-      "unit": "string — unit of measurement, default 'Nos'",
-      "qty": "number — quantity",
-      "rate": "number — price per unit in INR"
+      "unit": "string — unit of measurement exactly as printed, or empty string",
+      "qty": "string — quantity exactly as printed (may contain words, e.g. '26 Days'), or empty string",
+      "rate": "string — rate exactly as printed, or empty string",
+      "amount": "number or null — the line amount exactly as printed; never calculate it"
     }
   ]
 }
@@ -96,11 +98,12 @@ const RESPONSE_SCHEMA = {
           sno: { type: "INTEGER", description: "Line item serial number starting from 1" },
           description: { type: "STRING", description: "Detailed description of the goods or services" },
           hsnSac: { type: "STRING", description: "HSN/SAC code of the item" },
-          unit: { type: "STRING", description: "Unit of measurement, e.g. Nos, Kgs, Bags, Mtr (default to 'Nos')" },
-          qty: { type: "NUMBER", description: "Quantity" },
-          rate: { type: "NUMBER", description: "Rate/Price per unit in INR" }
+          unit: { type: "STRING", description: "Unit of measurement exactly as printed, e.g. Nos, Hrs, Month; empty string if not printed" },
+          qty: { type: "STRING", description: "Quantity exactly as printed (may contain words, e.g. '26 Days'); empty string if not printed" },
+          rate: { type: "STRING", description: "Rate exactly as printed; empty string if not printed" },
+          amount: { type: "NUMBER", description: "Line amount in INR exactly as printed on the invoice. Never calculate it." }
         },
-        required: ["sno", "description", "unit", "qty", "rate"]
+        required: ["sno", "description"]
       }
     }
   },
