@@ -2,7 +2,6 @@ export type InvoiceStatus = "DRAFT" | "SENT" | "PAID" | "QUOTATION";
 export type SignatureType = "DRAWN" | "UPLOADED" | "TYPED";
 
 export type ClientForm = {
-  id?: number;
   name: string;
   address: string;
   gstin: string;
@@ -13,6 +12,16 @@ export type ClientForm = {
   shipToGstin?: string;
   shipToState?: string;
   shipToStateCode?: string;
+};
+
+/** A client the user has billed before, as offered by the client picker. */
+export type SavedClient = ClientForm & { id: number };
+
+/** What the editor knows about Google Drive for the invoice on screen. */
+export type DriveStatus = {
+  enabled: boolean;
+  syncedAt: string | null;
+  error: string | null;
 };
 
 export type LineItemForm = {

@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { requireSessionUser } from "@/lib/auth";
+import { roundMoney } from "@/lib/calculations";
+import { BILLED_STATUSES } from "@/lib/invoiceStatus";
 
 const paymentSchema = z.object({
   clientId: z.number().int(),
@@ -36,7 +38,7 @@ export async function createPayment(input: z.infer<typeof paymentSchema>) {
       clientId,
       userId: user.id,
       date: new Date(date),
-      amount: new Prisma.Decimal(amount.toFixed(2)),
+      amount: new Prisma.Decimal(roundMoney(amount).toFixed(2)),
       referenceNo: referenceNo || null,
       description: description || null,
     },
@@ -59,51 +61,42 @@ export async function getLedgerData(clientId?: number) {
     }
   }
 
-  // Fetch all clients for the selector
+  // Clients to choose from: only ones that have been billed or paid, so the stray records the
+  // old "new invoice" page used to create do not clutter the list.
   const clients = await prisma.client.findMany({
-    where: { userId: user.id },
+    where: {
+      userId: user.id,
+      OR: [{ invoices: { some: {} } }, { payments: { some: {} } }],
+    },
     orderBy: { name: "asc" },
   });
 
-  // Calculate totals scoped to the user
-  const allInvoices = await prisma.invoice.findMany({
-    where: { userId: user.id },
-    select: { grandTotal: true, clientId: true },
+  // Light rows only: no stored PDFs and no line items are loaded for a statement.
+  const invoiceList = await prisma.invoice.findMany({
+    where: {
+      userId: user.id,
+      // A quotation is an offer, not a bill, so it is not a debit.
+      status: { in: BILLED_STATUSES },
+      ...(clientId ? { clientId } : {}),
+    },
+    select: {
+      id: true,
+      invoiceNo: true,
+      invoiceDate: true,
+      grandTotal: true,
+      clientName: true,
+      client: { select: { name: true } },
+    },
+    orderBy: [{ invoiceDate: "asc" }, { id: "asc" }],
   });
-  const allPayments = await prisma.payment.findMany({
-    where: { userId: user.id },
-    select: { amount: true, clientId: true },
-  });
 
-  let filteredInvoices = allInvoices;
-  let filteredPayments = allPayments;
-
-  if (clientId) {
-    filteredInvoices = allInvoices.filter((i) => i.clientId === clientId);
-    filteredPayments = allPayments.filter((p) => p.clientId === clientId);
-  }
-
-  const totalBilled = filteredInvoices.reduce((sum, i) => sum + Number(i.grandTotal), 0);
-  const totalPaid = filteredPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const totalOutstanding = totalBilled - totalPaid;
-
-  // Fetch detail entries scoped to the user
-  const invoiceDetailList = await prisma.invoice.findMany({
+  const paymentList = await prisma.payment.findMany({
     where: {
       userId: user.id,
       ...(clientId ? { clientId } : {}),
     },
-    include: { client: true },
-    orderBy: { invoiceDate: "asc" },
-  });
-
-  const paymentDetailList = await prisma.payment.findMany({
-    where: {
-      userId: user.id,
-      ...(clientId ? { clientId } : {}),
-    },
-    include: { client: true },
-    orderBy: { date: "asc" },
+    include: { client: { select: { name: true } } },
+    orderBy: [{ date: "asc" }, { id: "asc" }],
   });
 
   // Combine invoices and payments into a ledger
@@ -124,14 +117,14 @@ export async function getLedgerData(clientId?: number) {
 
   const entries: LedgerEntry[] = [];
 
-  for (const inv of invoiceDetailList) {
+  for (const inv of invoiceList) {
     entries.push({
       id: `inv-${inv.id}`,
       date: inv.invoiceDate.toISOString().slice(0, 10),
       rawDate: inv.invoiceDate,
       type: "INVOICE",
       docNo: inv.invoiceNo,
-      clientName: inv.client.name,
+      clientName: inv.clientName ?? inv.client.name,
       description: `Billed Invoice: ${inv.invoiceNo}`,
       debit: Number(inv.grandTotal),
       credit: 0,
@@ -139,7 +132,7 @@ export async function getLedgerData(clientId?: number) {
     });
   }
 
-  for (const p of paymentDetailList) {
+  for (const p of paymentList) {
     entries.push({
       id: `pay-${p.id}`,
       date: p.date.toISOString().slice(0, 10),
@@ -154,14 +147,18 @@ export async function getLedgerData(clientId?: number) {
     });
   }
 
-  // Sort by date chronologically
+  // Sort by date chronologically (stable: on the same day, invoices come before payments)
   entries.sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime());
 
-  // Compute running balance
+  // Compute running balance, and the totals, from the same list the statement shows
   let currentBalance = 0;
+  let totalBilled = 0;
+  let totalPaid = 0;
   for (const entry of entries) {
     currentBalance += entry.debit - entry.credit;
     entry.runningBalance = currentBalance;
+    totalBilled += entry.debit;
+    totalPaid += entry.credit;
   }
 
   // Return reverse-chronological list for UI, but compute running balance chronologically
@@ -173,7 +170,7 @@ export async function getLedgerData(clientId?: number) {
     summary: {
       totalBilled,
       totalPaid,
-      totalOutstanding,
+      totalOutstanding: totalBilled - totalPaid,
     },
   };
 }

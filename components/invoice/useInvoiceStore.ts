@@ -15,6 +15,8 @@ type InvoiceState = {
     key: K,
     value: ClientForm[K],
   ) => void;
+  /** Fills the bill-to and ship-to from a saved client. */
+  setClient: (client: ClientForm) => void;
   setLineItem: (index: number, next: Partial<LineItemForm>) => void;
   addLineItem: () => void;
   removeLineItem: (index: number) => void;
@@ -88,6 +90,16 @@ export const useInvoiceStore = create<InvoiceState>((set) => ({
       invoice: {
         ...state.invoice,
         client: { ...state.invoice.client, [key]: value },
+      },
+    })),
+  setClient: (client) =>
+    set((state) => ({
+      invoice: {
+        ...state.invoice,
+        client: { ...client },
+        // "State of supply" follows the client until the user picks one themselves.
+        state: state.invoice.state || client.state,
+        stateCode: state.invoice.stateCode || client.stateCode,
       },
     })),
   setLineItem: (index, next) =>

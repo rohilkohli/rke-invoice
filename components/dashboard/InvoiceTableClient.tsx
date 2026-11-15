@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import JSZip from "jszip";
-import { pdf } from "@react-pdf/renderer";
 import * as XLSX from "xlsx";
 import { Download, FileSpreadsheet, MoreHorizontal, Package, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -12,14 +11,9 @@ import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { InvoiceStatus } from "@/components/invoice/types";
+import type { InvoiceFormData, InvoiceStatus } from "@/components/invoice/types";
 import type { CompanySettingsPreview } from "@/components/invoice/InvoicePreview";
-import type { InvoiceFormData } from "@/components/invoice/types";
-import { InvoicePDF } from "@/components/pdf/InvoicePDF";
-import { buildUpiDeepLink, calculateTotals, getTaxMode } from "@/lib/calculations";
-import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
-import { generateQrPngDataUrl } from "@/lib/qr";
-import { buildInvoiceSheet, workbookToBlob } from "@/lib/export";
+import { buildInvoiceSheet, sanitizeSheetName, workbookToBlob } from "@/lib/export";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -51,7 +45,6 @@ export type InvoiceRow = {
   invoiceDate: string;
   amount: number;
   status: InvoiceStatus;
-  pdfName?: string | null;
 };
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -73,6 +66,21 @@ function formatINR(amount: number) {
   }).format(Number.isFinite(amount) ? amount : 0);
 }
 
+const safeName = (text: string) => text.replace(/[^\w.-]+/g, "_");
+
+/** The invoice's PDF, made by the server from what is saved: the same file Drive receives. */
+async function fetchInvoicePdf(id: number): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`/api/invoices/${id}/download`);
+  if (!res.ok) {
+    throw new Error(
+      res.status === 404 ? "Invoice not found." : "The PDF could not be made. Please try again.",
+    );
+  }
+  const disposition = res.headers.get("content-disposition") ?? "";
+  const filename = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? `invoice-${id}.pdf`;
+  return { blob: await res.blob(), filename };
+}
+
 function StatusBadge({ status }: { status: InvoiceStatus }) {
   const config = {
     DRAFT: { label: "Draft", className: "bg-muted text-muted-foreground" },
@@ -88,10 +96,7 @@ function StatusBadge({ status }: { status: InvoiceStatus }) {
   );
 }
 
-export function InvoiceTableClient(props: {
-  rows: InvoiceRow[];
-  company: CompanySettingsPreview;
-}) {
+export function InvoiceTableClient(props: { rows: InvoiceRow[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Record<number, boolean>>({});
   const [busy, setBusy] = useState<null | "zip" | "xlsx">(null);
@@ -153,47 +158,34 @@ export function InvoiceTableClient(props: {
     setBusy("zip");
     setProgress({ done: 0, total: selectedIds.length });
     try {
-      const { company, invoices } = await fetchExportDataFor(selectedIds);
       const zip = new JSZip();
+      const failed: string[] = [];
+      let added = 0;
 
-      for (let i = 0; i < invoices.length; i++) {
-        const inv = invoices[i]!;
-        const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, inv.client.stateCode);
-        const totals = calculateTotals({
-          items: inv.lineItems.map((li) => ({ amount: li.amount })),
-          cgstRate: inv.cgstRate,
-          sgstRate: inv.sgstRate,
-          igstRate: inv.igstRate,
-          taxMode,
-        });
-
-        const upiUrl =
-          company.upiId && inv.invoiceNo
-            ? buildUpiDeepLink({
-                pa: company.upiId,
-                pn: company.companyName,
-                amount: totals.grandTotal,
-                invoiceNo: inv.invoiceNo,
-              })
-            : "";
-        const qrDataUrl = upiUrl ? await generateQrPngDataUrl(upiUrl, { width: 256 }) : null;
-
-        const blob = await pdf(
-          <InvoicePDF
-            invoice={inv}
-            company={company}
-            copy="ORIGINAL"
-            qrDataUrl={qrDataUrl}
-          />,
-        ).toBlob();
-
-        const safe = (inv.invoiceNo || `invoice-${inv.id}`).replace(/[^\w.-]+/g, "_");
-        zip.file(`${safe}-ORIGINAL.pdf`, await blob.arrayBuffer());
-        setProgress({ done: i + 1, total: invoices.length });
+      for (let i = 0; i < selectedIds.length; i++) {
+        const id = selectedIds[i]!;
+        try {
+          const { blob, filename } = await fetchInvoicePdf(id);
+          zip.file(filename, await blob.arrayBuffer());
+          added++;
+        } catch {
+          failed.push(props.rows.find((r) => r.id === id)?.invoiceNo ?? String(id));
+        }
+        setProgress({ done: i + 1, total: selectedIds.length });
       }
 
-      const zipBlob = await zip.generateAsync({ type: "blob" });
-      downloadBlob(zipBlob, `invoices-${new Date().toISOString().slice(0, 10)}.zip`);
+      if (added > 0) {
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(zipBlob, `invoices-${new Date().toISOString().slice(0, 10)}.zip`);
+      }
+      if (failed.length) {
+        toast.error(
+          `${failed.length} PDF${failed.length === 1 ? "" : "s"} could not be made: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? "…" : ""}`,
+        );
+      }
+    } catch (e) {
+      toast.error("Failed to build the ZIP file");
+      console.error(e);
     } finally {
       setBusy(null);
       setProgress(null);
@@ -205,54 +197,35 @@ export function InvoiceTableClient(props: {
     try {
       const { company, invoices } = await fetchExportDataFor(selectedIds);
       const wb = XLSX.utils.book_new();
+      const usedNames = new Set<string>();
 
       for (const inv of invoices) {
         const sheet = buildInvoiceSheet({ invoice: inv, company });
-        const nameRaw = inv.invoiceNo || `INV-${inv.id}`;
-        const name = nameRaw.replace(/[\\/*?:\\[\\]]/g, "-").slice(0, 31);
-        XLSX.utils.book_append_sheet(wb, sheet, name);
+        XLSX.utils.book_append_sheet(
+          wb,
+          sheet,
+          sanitizeSheetName(inv.invoiceNo || `INV-${inv.id}`, usedNames),
+        );
       }
 
       const blob = workbookToBlob(wb);
       downloadBlob(blob, `invoices-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e) {
+      toast.error("Failed to build the spreadsheet");
+      console.error(e);
     } finally {
       setBusy(null);
     }
   };
 
   const downloadSinglePdf = async (invoiceId: number) => {
+    const toastId = toast.loading("Preparing PDF…");
     try {
-      const { company, invoices } = await fetchExportDataFor([invoiceId]);
-      const inv = invoices[0];
-      if (!inv) return;
-
-      const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, inv.client.stateCode);
-      const totals = calculateTotals({
-        items: inv.lineItems.map((li) => ({ amount: li.amount })),
-        cgstRate: inv.cgstRate,
-        sgstRate: inv.sgstRate,
-        igstRate: inv.igstRate,
-        taxMode,
-      });
-
-      const upiUrl =
-        company.upiId && inv.invoiceNo
-          ? buildUpiDeepLink({
-              pa: company.upiId,
-              pn: company.companyName,
-              amount: totals.grandTotal,
-              invoiceNo: inv.invoiceNo,
-            })
-          : "";
-      const qrDataUrl = upiUrl ? await generateQrPngDataUrl(upiUrl, { width: 256 }) : null;
-
-      const blob = await pdf(
-        <InvoicePDF invoice={inv} company={company} copy="ORIGINAL" qrDataUrl={qrDataUrl} />,
-      ).toBlob();
-      const safe = (inv.invoiceNo || `invoice-${inv.id}`).replace(/[^\w.-]+/g, "_");
-      downloadBlob(blob, `${safe}-ORIGINAL.pdf`);
+      const { blob, filename } = await fetchInvoicePdf(invoiceId);
+      downloadBlob(blob, filename);
+      toast.dismiss(toastId);
     } catch (e) {
-      toast.error("Failed to download PDF");
+      toast.error(e instanceof Error ? e.message : "Failed to download PDF", { id: toastId });
       console.error(e);
     }
   };
@@ -266,8 +239,7 @@ export function InvoiceTableClient(props: {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, buildInvoiceSheet({ invoice: inv, company }), "Invoice");
       const blob = workbookToBlob(wb);
-      const safe = (inv.invoiceNo || `invoice-${inv.id}`).replace(/[^\w.-]+/g, "_");
-      downloadBlob(blob, `${safe}.xlsx`);
+      downloadBlob(blob, `${safeName(inv.invoiceNo || `invoice-${inv.id}`)}.xlsx`);
     } catch (e) {
       toast.error("Failed to download XLSX");
       console.error(e);
@@ -418,26 +390,15 @@ export function InvoiceTableClient(props: {
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         render={
-                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Actions">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity" aria-label="Actions">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         }
                       />
                        <DropdownMenuContent align="end">
-                        {r.pdfName ? (
-                          <DropdownMenuItem onClick={() => window.open(`/api/invoices/${r.id}/download`, "_blank")}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Download Saved PDF
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem disabled className="opacity-50 cursor-not-allowed">
-                            <Download className="h-4 w-4 mr-2" />
-                            No Saved PDF
-                          </DropdownMenuItem>
-                        )}
                         <DropdownMenuItem onClick={() => downloadSinglePdf(r.id)}>
                           <Download className="h-4 w-4 mr-2" />
-                          Render PDF
+                          Download PDF
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => downloadSingleXlsx(r.id)}>
                           <FileSpreadsheet className="h-4 w-4 mr-2" />

@@ -3,6 +3,9 @@ import { getSessionUser } from "@/lib/auth";
 import { getOrCreateCompanySettings } from "@/lib/bootstrap";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 
+// "Sync all to Drive" works through the invoices that need it in one request.
+export const maxDuration = 60;
+
 export default async function SettingsPage() {
   const user = await getSessionUser();
   if (!user) {
@@ -33,6 +36,11 @@ export default async function SettingsPage() {
         defaultIgstRate: Number(company.defaultIgstRate),
         termsAndConditions: company.termsAndConditions,
         gdriveWebhookUrl: company.gdriveWebhookUrl,
+        // These four used to be left out, so saving this page blanked them every time.
+        tagline: company.tagline,
+        accountType: company.accountType,
+        state: company.state,
+        stateCode: company.stateCode,
       }}
     />
   );

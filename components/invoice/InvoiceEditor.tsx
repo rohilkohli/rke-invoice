@@ -9,25 +9,31 @@ import { Cloud, Loader2 } from "lucide-react";
 import { createInvoice, updateInvoice } from "@/app/actions/invoices";
 import { syncSingleInvoiceAction } from "@/app/actions/gdrive";
 import { PdfActions } from "@/components/pdf/PdfActions";
-import { UPIQRCode } from "@/components/qr/UPIQRCode";
 import { XlsxActions } from "@/components/export/XlsxActions";
-import { calculateTotals, getTaxMode, lineAmount, parseAmount } from "@/lib/calculations";
-import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
+import { calculateInvoiceTotals, lineAmount } from "@/lib/calculations";
+import { buildInvoiceQrText, generateQrPngDataUrl } from "@/lib/qr";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 import { InvoiceForm } from "./InvoiceForm";
 import { InvoicePreview, type CompanySettingsPreview } from "./InvoicePreview";
-import type { InvoiceFormData } from "./types";
+import type { DriveStatus, InvoiceFormData, SavedClient } from "./types";
+import { findInvoiceProblem } from "./validation";
 import { useInvoiceStore } from "./useInvoiceStore";
 
 const LOCAL_SIGNATURE_KEY = "rke_invoice_signature_v1";
 type InvoiceActionInput = Parameters<typeof updateInvoice>[0];
 
+function formatWhen(iso: string) {
+  return new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+}
+
 export function InvoiceEditor(props: {
   initialInvoice: InvoiceFormData;
   company: CompanySettingsPreview;
+  clients: SavedClient[];
+  drive: DriveStatus;
 }) {
   const router = useRouter();
   const setInvoice = useInvoiceStore((s) => s.setInvoice);
@@ -37,6 +43,9 @@ export function InvoiceEditor(props: {
   const [syncingDrive, startDriveTransition] = useTransition();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(true);
+  // What the last manual "Sync to Drive" found, for the invoice it was run on.
+  const [driveResult, setDriveResult] = useState<{ id: number; status: DriveStatus } | null>(null);
+  const drive = driveResult && driveResult.id === invoice.id ? driveResult.status : props.drive;
 
   const onSyncDrive = () => {
     const invoiceId = invoice.id;
@@ -44,8 +53,17 @@ export function InvoiceEditor(props: {
     startDriveTransition(async () => {
       try {
         const res = await syncSingleInvoiceAction(invoiceId);
+        setDriveResult({
+          id: invoiceId,
+          status: {
+            enabled: true,
+            syncedAt: res.success ? new Date().toISOString() : props.drive.syncedAt,
+            error: res.success ? null : (res.error ?? "Sync failed"),
+          },
+        });
         if (res.success) {
           toast.success(res.message || "Synced to Google Drive");
+          if (res.warning) toast.warning(res.warning, { duration: 12000 });
         } else {
           toast.error(res.error || "Failed to sync to Google Drive");
         }
@@ -77,15 +95,9 @@ export function InvoiceEditor(props: {
   }, [invoice.signature]);
 
   const onSave = () => {
-    // The invoice number is never generated for the user — it has to be typed in.
-    if (!invoice.invoiceNo.trim()) {
-      toast.error("Enter an invoice number before saving.");
-      return;
-    }
-    // Amounts are typed, not calculated, so a blank or non-numeric one has to be fixed first.
-    const badLine = invoice.lineItems.findIndex((li) => Number.isNaN(parseAmount(li.amount)));
-    if (badLine !== -1) {
-      toast.error(`Line ${badLine + 1}: type the amount as a number (for example 150000 or 1,50,000.50).`);
+    const problem = findInvoiceProblem(invoice);
+    if (problem) {
+      toast.error(problem);
       return;
     }
 
@@ -131,40 +143,46 @@ export function InvoiceEditor(props: {
     });
   };
 
-  const qrPayload = useMemo(() => {
-    const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, invoice.client.stateCode);
-    const totals = calculateTotals({
-      items: invoice.lineItems.map((li) => ({ amount: li.amount })),
-      cgstRate: invoice.cgstRate,
-      sgstRate: invoice.sgstRate,
-      igstRate: invoice.igstRate,
-      taxMode,
-    });
-    const company = props.company.companyName || "M/S RADHA KISHAN ENTERPRISES";
-    const gstin = props.company.gstin || "09ABCFR1989E1ZX";
-    const invoiceNo = invoice.invoiceNo || "";
-    const date = invoice.invoiceDate || "";
-    const billedTo = invoice.client.name || "";
-    const totalAmount = totals.grandTotal.toFixed(2);
+  // One QR text, built the same way as for the PDFs made on the server.
+  const grandTotal = useMemo(
+    () =>
+      calculateInvoiceTotals({
+        lineItems: invoice.lineItems,
+        cgstRate: invoice.cgstRate,
+        sgstRate: invoice.sgstRate,
+        igstRate: invoice.igstRate,
+        company: props.company,
+        client: invoice.client,
+      }).grandTotal,
+    [invoice.lineItems, invoice.cgstRate, invoice.sgstRate, invoice.igstRate, invoice.client, props.company],
+  );
 
-    return `COMPANY: ${company}
-GSTIN: ${gstin}
-Invoice No: ${invoiceNo}
-Date: ${date}
-Billed To: ${billedTo}
-Total Amount: ₹${totalAmount}`;
-  }, [
-    props.company.companyName,
-    props.company.gstin,
-    invoice.invoiceNo,
-    invoice.invoiceDate,
-    invoice.client.name,
-    invoice.client.stateCode,
-    invoice.cgstRate,
-    invoice.sgstRate,
-    invoice.igstRate,
-    invoice.lineItems,
-  ]);
+  const qrText = useMemo(
+    () =>
+      buildInvoiceQrText({
+        companyName: props.company.companyName,
+        gstin: props.company.gstin,
+        invoiceNo: invoice.invoiceNo,
+        invoiceDate: invoice.invoiceDate,
+        billedTo: invoice.client.name,
+        grandTotal,
+      }),
+    [props.company.companyName, props.company.gstin, invoice.invoiceNo, invoice.invoiceDate, invoice.client.name, grandTotal],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    generateQrPngDataUrl(qrText, { width: 256 })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setQrDataUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [qrText]);
 
   return (
     <div className={`grid gap-6 ${showPreview ? "lg:grid-cols-[1fr_640px]" : "grid-cols-1"}`}>
@@ -180,7 +198,7 @@ Total Amount: ₹${totalAmount}`;
                 qrDataUrl={qrDataUrl}
               />
               <XlsxActions invoice={invoice} company={props.company} />
-              {props.company.gdriveWebhookUrl && invoice.id ? (
+              {drive.enabled && invoice.id ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -197,6 +215,18 @@ Total Amount: ₹${totalAmount}`;
                 </Button>
               ) : null}
             </div>
+            {drive.enabled && invoice.id ? (
+              <p
+                className={`mt-2 text-xs ${drive.error ? "text-destructive" : "text-muted-foreground"}`}
+                data-testid="drive-status"
+              >
+                {drive.error
+                  ? `Last Drive sync failed: ${drive.error}`
+                  : drive.syncedAt
+                    ? `Last synced to Drive ${formatWhen(drive.syncedAt)}`
+                    : "Not synced to Drive yet. It syncs each time you save."}
+              </p>
+            ) : null}
           </div>
 
           <div className="hidden lg:flex items-center gap-3 border-l border-border pl-4">
@@ -211,7 +241,12 @@ Total Amount: ₹${totalAmount}`;
           </div>
         </div>
 
-        <InvoiceForm onSave={onSave} saving={saving} company={props.company} />
+        <InvoiceForm
+          onSave={onSave}
+          saving={saving}
+          company={props.company}
+          clients={props.clients}
+        />
       </div>
 
       {showPreview && (
@@ -227,12 +262,6 @@ Total Amount: ₹${totalAmount}`;
           </div>
         </div>
       )}
-
-      {qrPayload ? (
-        <div className="sr-only" aria-hidden>
-          <UPIQRCode value={qrPayload} size={256} onDataUrl={setQrDataUrl} />
-        </div>
-      ) : null}
     </div>
   );
 }

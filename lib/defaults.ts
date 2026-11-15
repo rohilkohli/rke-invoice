@@ -25,21 +25,6 @@ export const DEFAULT_COMPANY = {
   ].join("\n"),
 } as const;
 
-export const DEFAULT_CLIENT = {
-  name: "Larsen & Toubro Limited — L&T Energy Hydrocarbon",
-  address:
-    "14th Floor AMN Tower, Jogeshwari-Vikroli Link Road, Powai, Mumbai 400072",
-  gstin: "27AAACL0140PEZ6",
-  state: "Maharashtra",
-  stateCode: "27",
-  shipToName: "RIL",
-  shipToAddress:
-    "Survey No 135-137, Nagothane Manufacturing Division, SH-86, Nagothane, Raigad, Maharashtra 402125",
-  shipToGstin: "",
-  shipToState: "Maharashtra",
-  shipToStateCode: "27",
-} as const;
-
 export const DEFAULT_COMPANY_STATE = {
   state: "Uttar Pradesh",
   stateCode: "09",

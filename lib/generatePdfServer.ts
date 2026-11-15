@@ -1,192 +1,59 @@
+import "server-only";
+
 import { renderToBuffer } from "@react-pdf/renderer";
+import type { CompanySettings } from "@prisma/client";
 import React from "react";
+
 import { InvoicePDF } from "@/components/pdf/InvoicePDF";
-import type { InvoiceFormData } from "@/components/invoice/types";
-import type { CompanySettingsPreview } from "@/components/invoice/InvoicePreview";
-import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
-import { calculateTotals, getTaxMode, legacyDecimalText } from "@/lib/calculations";
-import { generateQrPngDataUrl } from "@/lib/qr";
-import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
+import { calculateInvoiceTotals } from "@/lib/calculations";
+import { buildInvoiceQrText, generateQrPngDataUrl } from "@/lib/qr";
+import { toCompanyPreview, toInvoiceFormData, type StoredInvoice } from "@/lib/serialize";
 
-export async function generateInvoicePdfBase64Server(
-  invoiceRecord: {
-    id: number;
-    invoiceNo: string;
-    invoiceDate: Date;
-    poNo?: string | null;
-    referenceNo?: string | null;
-    referenceDate?: string | null;
-    buyerOrderNo?: string | null;
-    paymentTerms?: string | null;
-    termsOfDelivery?: string | null;
-    billPeriodStart?: Date | null;
-    billPeriodEnd?: Date | null;
-    state: string;
-    stateCode: string;
-    transportMode?: string | null;
-    vehicleNo?: string | null;
-    placeOfSupply?: string | null;
-    irn?: string | null;
-    ewayBillNo?: string | null;
-    status: string;
-    reverseCharge: boolean;
-    cgstRate: unknown;
-    sgstRate: unknown;
-    igstRate: unknown;
-    client: {
-      id: number;
-      name: string;
-      address: string;
-      gstin: string;
-      state: string;
-      stateCode: string;
-      shipToName?: string | null;
-      shipToAddress?: string | null;
-      shipToGstin?: string | null;
-      shipToState?: string | null;
-      shipToStateCode?: string | null;
-    };
-    lineItems: Array<{
-      sno: number;
-      description: string;
-      hsnSac?: string | null;
-      unit: string;
-      qty: string;
-      rate: string;
-      amount: unknown;
-      equipmentId?: number | null;
-      meterStart?: unknown | null;
-      meterEnd?: unknown | null;
-    }>;
-    signature?: {
-      dataUrl: string;
-      type: string;
-    } | null;
-  },
-  companyRecord?: {
-    companyName: string;
-    gstin: string;
-    address: string;
-    email?: string | null;
-    phone?: string | null;
-    bankName?: string | null;
-    branch?: string | null;
-    accountNo?: string | null;
-    ifsc?: string | null;
-    upiId?: string | null;
-    logoUrl?: string | null;
-    termsAndConditions?: string | null;
-    tagline?: string | null;
-    accountType?: string | null;
-    stateCode?: string | null;
-    state?: string | null;
-  } | null
-): Promise<string> {
-  const invoiceData: InvoiceFormData = {
-    id: invoiceRecord.id,
-    invoiceNo: invoiceRecord.invoiceNo,
-    invoiceDate: invoiceRecord.invoiceDate ? invoiceRecord.invoiceDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-    poNo: invoiceRecord.poNo ?? undefined,
-    referenceNo: invoiceRecord.referenceNo ?? undefined,
-    referenceDate: invoiceRecord.referenceDate ?? undefined,
-    buyerOrderNo: invoiceRecord.buyerOrderNo ?? undefined,
-    paymentTerms: invoiceRecord.paymentTerms ?? undefined,
-    termsOfDelivery: invoiceRecord.termsOfDelivery ?? undefined,
-    billPeriodStart: invoiceRecord.billPeriodStart ? invoiceRecord.billPeriodStart.toISOString().split("T")[0] : undefined,
-    billPeriodEnd: invoiceRecord.billPeriodEnd ? invoiceRecord.billPeriodEnd.toISOString().split("T")[0] : undefined,
-    state: invoiceRecord.state,
-    stateCode: invoiceRecord.stateCode,
-    transportMode: invoiceRecord.transportMode ?? undefined,
-    vehicleNo: invoiceRecord.vehicleNo ?? undefined,
-    placeOfSupply: invoiceRecord.placeOfSupply ?? undefined,
-    irn: invoiceRecord.irn ?? undefined,
-    ewayBillNo: invoiceRecord.ewayBillNo ?? undefined,
-    status: (invoiceRecord.status as InvoiceFormData["status"]) || "DRAFT",
-    reverseCharge: invoiceRecord.reverseCharge,
-    cgstRate: Number(invoiceRecord.cgstRate) || 9,
-    sgstRate: Number(invoiceRecord.sgstRate) || 9,
-    igstRate: Number(invoiceRecord.igstRate) || 18,
-    client: {
-      id: invoiceRecord.client.id,
-      name: invoiceRecord.client.name,
-      address: invoiceRecord.client.address,
-      gstin: invoiceRecord.client.gstin,
-      state: invoiceRecord.client.state,
-      stateCode: invoiceRecord.client.stateCode,
-      shipToName: invoiceRecord.client.shipToName ?? undefined,
-      shipToAddress: invoiceRecord.client.shipToAddress ?? undefined,
-      shipToGstin: invoiceRecord.client.shipToGstin ?? undefined,
-      shipToState: invoiceRecord.client.shipToState ?? undefined,
-      shipToStateCode: invoiceRecord.client.shipToStateCode ?? undefined,
-    },
-    lineItems: invoiceRecord.lineItems.map((li) => ({
-      sno: li.sno,
-      description: li.description,
-      hsnSac: li.hsnSac ?? undefined,
-      unit: li.unit,
-      qty: legacyDecimalText(li.qty),
-      rate: legacyDecimalText(li.rate, { money: true }),
-      amount: String(Number(li.amount) || 0),
-      equipmentId: li.equipmentId ?? undefined,
-      meterStart: li.meterStart != null ? Number(li.meterStart) : undefined,
-      meterEnd: li.meterEnd != null ? Number(li.meterEnd) : undefined,
-    })),
-    signature: invoiceRecord.signature
-      ? {
-          dataUrl: invoiceRecord.signature.dataUrl,
-          type: invoiceRecord.signature.type as "DRAWN" | "UPLOADED" | "TYPED",
-        }
-      : null,
-  };
+/**
+ * The invoice PDF, made from the saved invoice. Every download from the dashboard and every
+ * copy sent to Google Drive comes through here, so they are always the same document and
+ * always reflect what is saved right now.
+ */
+export async function generateInvoicePdfBuffer(
+  invoice: StoredInvoice,
+  company: CompanySettings,
+): Promise<Buffer> {
+  const invoiceData = toInvoiceFormData(invoice);
+  const companyData = toCompanyPreview(company);
 
-  // Safely resolve Logo URL (uses shared utility with disk fallback)
-  const logoUrl = resolveLogoDataUrl(companyRecord?.logoUrl ?? null);
+  const { grandTotal } = calculateInvoiceTotals({
+    lineItems: invoiceData.lineItems,
+    cgstRate: invoiceData.cgstRate,
+    sgstRate: invoiceData.sgstRate,
+    igstRate: invoiceData.igstRate,
+    company: companyData,
+    client: invoiceData.client,
+  });
 
-  const companyData: CompanySettingsPreview = {
-    companyName: companyRecord?.companyName || "M/S RADHA KISHAN ENTERPRISES",
-    gstin: companyRecord?.gstin || "09ABFPR0000A1Z5",
-    address: companyRecord?.address || "Head Office, City Center, Road No 1, UP",
-    email: companyRecord?.email ?? null,
-    phone: companyRecord?.phone ?? null,
-    bankName: companyRecord?.bankName ?? null,
-    branch: companyRecord?.branch ?? null,
-    accountNo: companyRecord?.accountNo ?? null,
-    ifsc: companyRecord?.ifsc ?? null,
-    upiId: companyRecord?.upiId ?? null,
-    logoUrl,
-    termsAndConditions: companyRecord?.termsAndConditions ?? null,
-    tagline: companyRecord?.tagline ?? null,
-    accountType: companyRecord?.accountType ?? "Current",
-    stateCode: companyRecord?.stateCode ?? "09",
-    state: companyRecord?.state ?? "Uttar Pradesh",
-  };
+  const qrDataUrl = await generateQrPngDataUrl(
+    buildInvoiceQrText({
+      companyName: companyData.companyName,
+      gstin: companyData.gstin,
+      invoiceNo: invoiceData.invoiceNo,
+      invoiceDate: invoiceData.invoiceDate,
+      billedTo: invoiceData.client.name,
+      grandTotal,
+    }),
+    { width: 256 },
+  );
 
-  // Generate UPI QR Code Data URL on Server
-  let qrDataUrl: string | null = null;
-  try {
-    const companyStateCode = companyData.stateCode ?? DEFAULT_COMPANY_STATE.stateCode;
-    const taxMode = getTaxMode(companyStateCode, invoiceData.client.stateCode);
-    const totals = calculateTotals({
-      items: invoiceData.lineItems.map((li) => ({ amount: li.amount })),
-      cgstRate: invoiceData.cgstRate,
-      sgstRate: invoiceData.sgstRate,
-      igstRate: invoiceData.igstRate,
-      taxMode,
-    });
-    const upiId = companyData.upiId || "agranitinkohli@gmail.com";
-    const upiUri = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(companyData.companyName)}&am=${totals.grandTotal}&cu=INR&tn=${encodeURIComponent(`Invoice ${invoiceData.invoiceNo}`)}`;
-    qrDataUrl = await generateQrPngDataUrl(upiUri, { width: 128 });
-  } catch (qrErr) {
-    console.error("Failed to generate UPI QR code on server:", qrErr);
-  }
-
-  const pdfElement = React.createElement(InvoicePDF, {
+  const element = React.createElement(InvoicePDF, {
     invoice: invoiceData,
     company: companyData,
     copy: "ORIGINAL",
     qrDataUrl,
   });
+  return renderToBuffer(element as unknown as Parameters<typeof renderToBuffer>[0]);
+}
 
-  const buffer = await renderToBuffer(pdfElement as unknown as Parameters<typeof renderToBuffer>[0]);
-  return buffer.toString("base64");
+export async function generateInvoicePdfBase64Server(
+  invoice: StoredInvoice,
+  company: CompanySettings,
+): Promise<string> {
+  return (await generateInvoicePdfBuffer(invoice, company)).toString("base64");
 }

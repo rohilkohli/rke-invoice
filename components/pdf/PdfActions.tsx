@@ -3,13 +3,12 @@
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import type { InvoiceFormData } from "@/components/invoice/types";
 import type { CompanySettingsPreview } from "@/components/invoice/InvoicePreview";
 import { InvoicePDF, type InvoiceCopy } from "@/components/pdf/InvoicePDF";
-
-import { saveInvoicePdf } from "@/app/actions/invoices";
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -22,6 +21,10 @@ function downloadBlob(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/**
+ * Downloads the invoice as it is on screen, including edits not yet saved. Nothing is stored:
+ * the copy that goes to Google Drive is always made fresh from the saved invoice.
+ */
 export function PdfActions(props: {
   invoice: InvoiceFormData;
   company: CompanySettingsPreview;
@@ -45,26 +48,10 @@ export function PdfActions(props: {
           qrDataUrl={props.qrDataUrl}
         />,
       ).toBlob();
-      
-      const filename = `${filenameBase}-${copy}.pdf`;
-
-      // Upload generated PDF file to the backend cloud database
-      if (props.invoice.id) {
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          try {
-            const base64Data = (reader.result as string).split(",")[1];
-            if (base64Data && props.invoice.id) {
-              await saveInvoicePdf(props.invoice.id, filename, base64Data);
-            }
-          } catch (e) {
-            console.error("Failed to upload generated PDF to backend:", e);
-          }
-        };
-        reader.readAsDataURL(blob);
-      }
-
-      downloadBlob(blob, filename);
+      downloadBlob(blob, `${filenameBase}-${copy}.pdf`);
+    } catch (e) {
+      toast.error("Could not make the PDF. Please try again.");
+      console.error(e);
     } finally {
       setLoading(null);
     }
@@ -102,4 +89,3 @@ export function PdfActions(props: {
     </div>
   );
 }
-

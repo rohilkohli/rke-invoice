@@ -5,6 +5,7 @@ import { Trash2, Plus } from "lucide-react";
 
 import { parseAmount } from "@/lib/calculations";
 import { Button } from "@/components/ui/button";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -43,56 +44,6 @@ const FREE_TEXT_MAX = 60;
 /** Something is typed in the Amount box, but it is not a usable number. */
 function amountIsInvalid(amount: string) {
   return amount.trim() !== "" && Number.isNaN(parseAmount(amount));
-}
-
-function DecimalInput({
-  value,
-  onChange,
-  className,
-  placeholder,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  className?: string;
-  placeholder?: string;
-}) {
-  const [raw, setRaw] = useState(value === 0 ? "" : String(value));
-
-  useEffect(() => {
-    const parsed = parseFloat(raw);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing external prop to local state
-    if (parsed !== value) setRaw(value === 0 ? "" : String(value));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
-
-  return (
-    <Input
-      inputMode="decimal"
-      className={className}
-      placeholder={placeholder}
-      value={raw}
-      onChange={(e) => {
-        const str = e.target.value;
-        setRaw(str);
-        // Emptying the box clears the value instead of snapping back on blur.
-        if (str.trim() === "") {
-          onChange(0);
-          return;
-        }
-        const num = parseFloat(str);
-        if (!isNaN(num)) onChange(num);
-      }}
-      onBlur={() => {
-        const num = parseFloat(raw);
-        if (!isNaN(num)) {
-          onChange(num);
-          setRaw(String(num));
-        } else {
-          setRaw(value === 0 ? "" : String(value));
-        }
-      }}
-    />
-  );
 }
 
 export function InvoiceTable() {
@@ -169,15 +120,15 @@ export function InvoiceTable() {
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Meter Start</label>
                       <DecimalInput
-                        value={li.meterStart ?? 0}
-                        onChange={(n) => setLineItem(idx, { meterStart: n || null })}
+                        value={li.meterStart}
+                        onChange={(n) => setLineItem(idx, { meterStart: n })}
                       />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Meter End</label>
                       <DecimalInput
-                        value={li.meterEnd ?? 0}
-                        onChange={(n) => setLineItem(idx, { meterEnd: n || null })}
+                        value={li.meterEnd}
+                        onChange={(n) => setLineItem(idx, { meterEnd: n })}
                       />
                     </div>
                   </div>
@@ -304,14 +255,14 @@ export function InvoiceTable() {
                     <div className="flex gap-2">
                       <DecimalInput
                         className="h-8 px-1.5 text-xs placeholder:text-[10px]"
-                        value={li.meterStart ?? 0}
-                        onChange={(n) => setLineItem(idx, { meterStart: n || null })}
+                        value={li.meterStart}
+                        onChange={(n) => setLineItem(idx, { meterStart: n })}
                         placeholder="Meter Start"
                       />
                       <DecimalInput
                         className="h-8 px-1.5 text-xs placeholder:text-[10px]"
-                        value={li.meterEnd ?? 0}
-                        onChange={(n) => setLineItem(idx, { meterEnd: n || null })}
+                        value={li.meterEnd}
+                        onChange={(n) => setLineItem(idx, { meterEnd: n })}
                         placeholder="Meter End"
                       />
                     </div>

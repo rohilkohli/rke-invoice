@@ -1,7 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/db";
-import { DEFAULT_CLIENT, DEFAULT_COMPANY } from "@/lib/defaults";
+import { DEFAULT_COMPANY } from "@/lib/defaults";
 
 export async function getOrCreateCompanySettings(userId: number) {
   const existing = await prisma.companySettings.findUnique({
@@ -33,13 +33,4 @@ export async function getOrCreateCompanySettings(userId: number) {
       termsAndConditions: DEFAULT_COMPANY.termsAndConditions,
     },
   });
-}
-
-export async function getOrCreateDefaultClient(userId: number) {
-  const existing = await prisma.client.findFirst({
-    where: { userId, gstin: DEFAULT_CLIENT.gstin },
-  });
-  if (existing) return existing;
-
-  return prisma.client.create({ data: { ...DEFAULT_CLIENT, userId } });
 }

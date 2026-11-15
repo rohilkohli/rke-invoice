@@ -12,9 +12,11 @@ import type { InvoiceFormData } from "@/components/invoice/types";
 import type { CompanySettingsPreview } from "@/components/invoice/InvoicePreview";
 import {
   amountInWordsINR,
-  calculateTotals,
-  getTaxMode,
+  calculateInvoiceTotals,
   lineAmount,
+  parseAmountPaise,
+  roundMoney,
+  taxOnPaise,
 } from "@/lib/calculations";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
 
@@ -480,18 +482,16 @@ export function InvoicePDF(props: {
   copy: InvoiceCopy;
   qrDataUrl?: string | null;
 }) {
-  const companyStateCode = props.company.stateCode ?? DEFAULT_COMPANY_STATE.stateCode;
-  const taxMode = getTaxMode(companyStateCode, props.invoice.client.stateCode);
-  const totals = calculateTotals({
-    items: props.invoice.lineItems.map((li) => ({ amount: li.amount })),
+  // The same figures, tax rule and rounding as the form, the spreadsheet and the server.
+  const { taxMode, amountInWords, ...totals } = calculateInvoiceTotals({
+    lineItems: props.invoice.lineItems,
     cgstRate: props.invoice.cgstRate,
     sgstRate: props.invoice.sgstRate,
     igstRate: props.invoice.igstRate,
-    taxMode,
+    company: props.company,
+    client: props.invoice.client,
   });
-
-  const amountInWords = amountInWordsINR(totals.grandTotal);
-  const taxTotal = totals.cgst + totals.sgst + totals.igst;
+  const taxTotal = roundMoney(totals.cgst + totals.sgst + totals.igst);
   const taxInWords = amountInWordsINR(taxTotal);
 
   // Fill up table rows to minimum 5
@@ -508,47 +508,29 @@ export function InvoicePDF(props: {
     });
   }
 
-  // Calculate HSN/SAC Tax Breakdown
-  const hsnMap: Record<
-    string,
-    {
-      hsn: string;
-      taxableValue: number;
-      cgstAmt: number;
-      sgstAmt: number;
-      igstAmt: number;
-      totalTax: number;
-    }
-  > = {};
-
+  // Calculate HSN/SAC Tax Breakdown, in whole paise like the totals
+  const taxableByHsn: Record<string, { hsn: string; taxablePaise: number }> = {};
   props.invoice.lineItems.forEach((item) => {
     const hsn = item.hsnSac || "998719";
-    const taxableValue = lineAmount(item.amount);
-
-    let cgstAmt = 0;
-    let sgstAmt = 0;
-    let igstAmt = 0;
-
-    if (taxMode === "INTRA_STATE") {
-      cgstAmt = (taxableValue * props.invoice.cgstRate) / 100;
-      sgstAmt = (taxableValue * props.invoice.sgstRate) / 100;
-    } else {
-      igstAmt = (taxableValue * props.invoice.igstRate) / 100;
-    }
-
-    const totalTax = cgstAmt + sgstAmt + igstAmt;
-
-    if (!hsnMap[hsn]) {
-      hsnMap[hsn] = { hsn, taxableValue: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, totalTax: 0 };
-    }
-    hsnMap[hsn].taxableValue += taxableValue;
-    hsnMap[hsn].cgstAmt += cgstAmt;
-    hsnMap[hsn].sgstAmt += sgstAmt;
-    hsnMap[hsn].igstAmt += igstAmt;
-    hsnMap[hsn].totalTax += totalTax;
+    const paise = parseAmountPaise(item.amount);
+    if (!taxableByHsn[hsn]) taxableByHsn[hsn] = { hsn, taxablePaise: 0 };
+    taxableByHsn[hsn].taxablePaise += Number.isNaN(paise) ? 0 : paise;
   });
 
-  const hsnRows = Object.values(hsnMap);
+  const hsnRows = Object.values(taxableByHsn).map(({ hsn, taxablePaise }) => {
+    const intra = taxMode === "INTRA_STATE";
+    const cgstAmt = intra ? taxOnPaise(taxablePaise, props.invoice.cgstRate) / 100 : 0;
+    const sgstAmt = intra ? taxOnPaise(taxablePaise, props.invoice.sgstRate) / 100 : 0;
+    const igstAmt = intra ? 0 : taxOnPaise(taxablePaise, props.invoice.igstRate) / 100;
+    return {
+      hsn,
+      taxableValue: taxablePaise / 100,
+      cgstAmt,
+      sgstAmt,
+      igstAmt,
+      totalTax: roundMoney(cgstAmt + sgstAmt + igstAmt),
+    };
+  });
 
   const logoSrc = resolveLogoSrc(props.company.logoUrl);
 
@@ -731,7 +713,7 @@ export function InvoicePDF(props: {
             if (hasData) {
               itemGstRate =
                 taxMode === "INTRA_STATE"
-                  ? `${props.invoice.cgstRate + props.invoice.sgstRate}%`
+                  ? `${Number((props.invoice.cgstRate + props.invoice.sgstRate).toFixed(2))}%`
                   : `${props.invoice.igstRate}%`;
             }
 
@@ -892,11 +874,11 @@ export function InvoicePDF(props: {
             {/* QR Code */}
             <View style={[styles.qrContainer, { marginTop: 4 }]}>
               {props.qrDataUrl ? (
-                <PdfImage src={props.qrDataUrl} style={{ width: 62, height: 62 }} />
-              ) : (
-                <View style={{ width: 62, height: 62, borderWidth: 0.5, borderColor: "#000" }} />
-              )}
-              <Text style={styles.qrLabel}>Scan for Details</Text>
+                <>
+                  <PdfImage src={props.qrDataUrl} style={{ width: 62, height: 62 }} />
+                  <Text style={styles.qrLabel}>Scan for Details</Text>
+                </>
+              ) : null}
             </View>
           </View>
 
