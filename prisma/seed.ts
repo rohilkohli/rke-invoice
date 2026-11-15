@@ -1,46 +1,60 @@
 import { PrismaClient } from "@prisma/client";
-import crypto from "crypto";
+
+import { hashPassword } from "../lib/crypto";
 
 const prisma = new PrismaClient();
 
-function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, "sha512").toString("hex");
-  return `${salt}:${hash}`;
-}
-
+/**
+ * Creates the first login. Nothing about it is stored in the repository:
+ *
+ *   SEED_ADMIN_EMAIL="you@example.com" SEED_ADMIN_PASSWORD="a long password" npx prisma db seed
+ *
+ * An existing user is left exactly as it is. To replace its password on purpose, also set
+ * SEED_RESET_PASSWORD=true.
+ */
 async function main() {
-  const email = "agranitinkohli@gmail.com";
-  const name = "Nitin Kohli";
-  const password = "Agra@2009";
+  const email = process.env.SEED_ADMIN_EMAIL?.trim();
+  const password = process.env.SEED_ADMIN_PASSWORD;
+  const name = process.env.SEED_ADMIN_NAME?.trim() || null;
+  const reset = process.env.SEED_RESET_PASSWORD === "true";
+
+  if (!email || !password) {
+    throw new Error(
+      "Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD, for example:\n" +
+        '  SEED_ADMIN_EMAIL="you@example.com" SEED_ADMIN_PASSWORD="a long password" npx prisma db seed',
+    );
+  }
+  if (password.length < 10) {
+    throw new Error("SEED_ADMIN_PASSWORD must be at least 10 characters.");
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
+
   if (existing) {
-    console.log(`User ${email} already exists.`);
+    if (!reset) {
+      console.log(
+        `User ${email} already exists and was left unchanged. ` +
+          "Set SEED_RESET_PASSWORD=true to replace its password.",
+      );
+      return;
+    }
     await prisma.user.update({
       where: { email },
-      data: {
-        name,
-        password: hashPassword(password),
-      },
+      data: { password: hashPassword(password), ...(name ? { name } : {}) },
     });
-    console.log(`Updated user ${email} password and name.`);
-  } else {
-    const hashedPassword = hashPassword(password);
-    await prisma.user.create({
-      data: {
-        email,
-        name,
-        password: hashedPassword,
-      },
-    });
-    console.log(`Created user ${email} successfully.`);
+    console.log(`Replaced the password for ${email}.`);
+    return;
   }
+
+  await prisma.user.create({
+    data: { email, name, password: hashPassword(password) },
+  });
+  console.log(`Created user ${email}.`);
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error(e instanceof Error ? e.message : e);
     process.exit(1);
   })
   .finally(async () => {

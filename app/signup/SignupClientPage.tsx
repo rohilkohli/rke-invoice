@@ -2,12 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Lock, Mail, User, ArrowRight, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+import { Lock, Mail, User, ArrowRight, Eye, EyeOff, KeyRound } from "lucide-react";
 
 import { signUp } from "@/app/actions/auth";
 
-export default function SignupClientPage() {
+export default function SignupClientPage({ open }: { open: boolean }) {
   const [name, setName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -15,7 +17,7 @@ export default function SignupClientPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !name) {
+    if (!email || !password || !name || !inviteCode) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -26,7 +28,7 @@ export default function SignupClientPage() {
     }
 
     startTransition(async () => {
-      const result = await signUp({ email, password, name });
+      const result = await signUp({ email, password, name, inviteCode });
       if (result?.error) {
         toast.error(result.error);
       } else {
@@ -34,6 +36,25 @@ export default function SignupClientPage() {
       }
     });
   };
+
+  if (!open) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center px-4 overflow-hidden bg-neutral-950">
+        <div className="relative w-full max-w-md p-8 space-y-4 bg-neutral-900/60 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl z-10 text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-white">Sign-up is closed</h1>
+          <p className="text-sm text-neutral-300">
+            New logins are created by the account owner. If you already have a login, sign in below.
+          </p>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+          >
+            Go to sign in <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 overflow-hidden select-none bg-neutral-950">
@@ -98,6 +119,28 @@ export default function SignupClientPage() {
             >
               <Mail className="inline-block mr-2 h-4 w-4" />
               Email Address
+            </label>
+          </div>
+
+          {/* Invite code */}
+          <div className="relative z-0">
+            <input
+              type="text"
+              id="floating_invite"
+              className="block py-2.5 px-0 w-full text-sm text-white bg-transparent border-0 border-b-2 border-neutral-400 appearance-none focus:outline-none focus:ring-0 focus:border-blue-500 peer disabled:opacity-50"
+              placeholder=" "
+              required
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              disabled={isPending}
+              autoComplete="off"
+            />
+            <label
+              htmlFor="floating_invite"
+              className="absolute text-sm text-neutral-300 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-blue-400 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6 flex items-center"
+            >
+              <KeyRound className="inline-block mr-2 h-4 w-4" />
+              Invite Code
             </label>
           </div>
 
