@@ -15,6 +15,8 @@ type InvoiceState = {
     key: K,
     value: ClientForm[K],
   ) => void;
+  /** Fills the bill-to and ship-to from a saved client. */
+  setClient: (client: ClientForm) => void;
   setLineItem: (index: number, next: Partial<LineItemForm>) => void;
   addLineItem: () => void;
   removeLineItem: (index: number) => void;
@@ -27,20 +29,26 @@ function clampNumber(n: unknown) {
   return Number.isFinite(num) ? num : 0;
 }
 
-function normalizeNumberish(value: unknown): number | string {
-  if (typeof value === "string") return value;
-  return Math.max(0, clampNumber(value));
-}
-
 function normalizeLineItem(item: LineItemForm): LineItemForm {
   return {
     sno: Math.max(1, Math.trunc(clampNumber(item.sno))),
     description: item.description ?? "",
     hsnSac: item.hsnSac ?? "",
+    // Kept exactly as typed — no clamping, no parsing, no link between them.
     unit: item.unit ?? "",
-    qty: normalizeNumberish(item.qty),
-    rate: normalizeNumberish(item.rate),
+    qty: item.qty ?? "",
+    rate: item.rate ?? "",
+    amount: item.amount ?? "",
+    // Meter readings are notes only and never drive qty.
+    equipmentId: item.equipmentId ?? null,
+    meterStart: item.meterStart ?? null,
+    meterEnd: item.meterEnd ?? null,
   };
+}
+
+/** A new row starts empty: every line figure is typed in by the user. */
+function blankLineItem(sno: number): LineItemForm {
+  return { sno, description: "", hsnSac: "", unit: "", qty: "", rate: "", amount: "" };
 }
 
 export const useInvoiceStore = create<InvoiceState>((set) => ({
@@ -69,16 +77,7 @@ export const useInvoiceStore = create<InvoiceState>((set) => ({
       shipToName: "",
       shipToAddress: "",
     },
-    lineItems: [
-      {
-        sno: 1,
-        description: "",
-        hsnSac: "",
-        unit: "Nos",
-        qty: 1,
-        rate: 0,
-      },
-    ],
+    lineItems: [blankLineItem(1)],
     signature: null,
   },
   setInvoice: (invoice) => set({ invoice }),
@@ -91,6 +90,16 @@ export const useInvoiceStore = create<InvoiceState>((set) => ({
       invoice: {
         ...state.invoice,
         client: { ...state.invoice.client, [key]: value },
+      },
+    })),
+  setClient: (client) =>
+    set((state) => ({
+      invoice: {
+        ...state.invoice,
+        client: { ...client },
+        // "State of supply" follows the client until the user picks one themselves.
+        state: state.invoice.state || client.state,
+        stateCode: state.invoice.stateCode || client.stateCode,
       },
     })),
   setLineItem: (index, next) =>
@@ -107,17 +116,7 @@ export const useInvoiceStore = create<InvoiceState>((set) => ({
       return {
         invoice: {
           ...state.invoice,
-          lineItems: [
-            ...state.invoice.lineItems,
-            {
-              sno: nextSno,
-              description: "",
-              hsnSac: "",
-              unit: "Nos",
-              qty: 1,
-              rate: 0,
-            },
-          ],
+          lineItems: [...state.invoice.lineItems, blankLineItem(nextSno)],
         },
       };
     }),

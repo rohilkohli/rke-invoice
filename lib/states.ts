@@ -54,3 +54,17 @@ export function getStateByName(name: string | null | undefined): IndianState | u
   const normalized = name.trim().toLowerCase();
   return INDIAN_STATES.find((s) => s.name.toLowerCase() === normalized);
 }
+
+/** "9", " 09 " and "09" are the same state code. Anything else is only trimmed and upper-cased. */
+export function normalizeStateCode(code: string | null | undefined): string {
+  const text = (code ?? "").trim();
+  return /^\d{1,2}$/.test(text) ? text.padStart(2, "0") : text.toUpperCase();
+}
+
+/** The state code to use for tax: the code if one is given, otherwise looked up from the state name. */
+export function resolveStateCode(
+  code: string | null | undefined,
+  name: string | null | undefined,
+): string {
+  return normalizeStateCode(code) || getStateByName(name)?.code || "";
+}

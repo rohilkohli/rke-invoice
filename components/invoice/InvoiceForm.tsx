@@ -5,14 +5,9 @@ import { Save, ClipboardList, Building2, Truck, Percent, Sparkles, ChevronLeft, 
 import { toast } from "sonner";
 import { scanInvoiceAction } from "@/app/actions/ocr";
 
-import {
-  amountInWordsINR,
-  calculateTotals,
-  formatINR,
-  getTaxMode,
-} from "@/lib/calculations";
-import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
+import { calculateInvoiceTotals, formatINR } from "@/lib/calculations";
 import { INDIAN_STATES, getStateByCode } from "@/lib/states";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,14 +30,33 @@ import {
 
 import { InvoiceTable } from "./InvoiceTable";
 import { useInvoiceStore } from "./useInvoiceStore";
-import type { InvoiceStatus } from "./types";
+import { ClientPicker } from "./ClientPicker";
+import type { ClientForm, InvoiceStatus, SavedClient } from "./types";
+import { findClientProblem, findDetailsProblem, findLineItemsProblem } from "./validation";
 import { cn } from "@/lib/utils";
 import { InvoicePreview, type CompanySettingsPreview } from "./InvoicePreview";
+
+// The scan goes to the server in one request, and the host caps a request at about 4 MB
+// (base64 makes a file a third bigger). Pictures are shrunk to fit; a PDF has to be small already.
+const MAX_PDF_BYTES = 3 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+const MAX_SCAN_BASE64_CHARS = 4_000_000;
+
+/** True when the consignee (ship-to) differs from the billed client, so the extra fields are shown. */
+function shipsElsewhere(c: ClientForm) {
+  return (
+    (!!c.shipToName && c.shipToName !== c.name) ||
+    (!!c.shipToAddress && c.shipToAddress !== c.address) ||
+    !!c.shipToGstin ||
+    !!c.shipToState
+  );
+}
 
 export function InvoiceForm(props: {
   onSave: () => void;
   saving?: boolean;
   company: CompanySettingsPreview;
+  clients: SavedClient[];
 }) {
   const invoice = useInvoiceStore((s) => s.invoice);
   const setField = useInvoiceStore((s) => s.setField);
@@ -82,7 +96,6 @@ export function InvoiceForm(props: {
     )?.code || invoice.client.stateCode || "";
 
   const [scanning, setScanning] = useState(false);
-  const [scanMode, setScanMode] = useState<"flash" | "pro">("flash");
   const [differentShipping, setDifferentShipping] = useState(false);
 
   // Auto-detect different shipping address only once when real invoice data loads.
@@ -94,11 +107,8 @@ export function InvoiceForm(props: {
     // Only run detection once we have meaningful data (name is non-empty)
     if (!c.name) return;
     hasInitializedShipping.current = true;
-    const isDifferent =
-      (!!c.shipToName && c.shipToName !== c.name) ||
-      (!!c.shipToAddress && c.shipToAddress !== c.address);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- One-time init guarded by ref
-    setDifferentShipping(isDifferent);
+    setDifferentShipping(shipsElsewhere(c));
   }, [invoice.client]);
 
   const [isMobile, setIsMobile] = useState(false);
@@ -113,57 +123,74 @@ export function InvoiceForm(props: {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const compressImage = (file: File): Promise<{ dataUrl: string; mimeType: string }> =>
-    new Promise((resolve) => {
-      if (file.type === "application/pdf") {
-        const reader = new FileReader();
-        reader.onload = () => resolve({ dataUrl: reader.result as string, mimeType: file.type });
-        reader.readAsDataURL(file);
-        return;
-      }
-      const img = new window.Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        const MAX = 2048;
+  const readAsDataUrl = (file: File): Promise<{ dataUrl: string; mimeType: string }> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ dataUrl: reader.result as string, mimeType: file.type });
+      reader.onerror = () => reject(new Error("Could not read the file."));
+      reader.readAsDataURL(file);
+    });
+
+  /** Shrinks a picture step by step until it fits in one request; a PDF is sent as it is. */
+  const prepareScanFile = async (file: File): Promise<{ dataUrl: string; mimeType: string }> => {
+    if (file.type === "application/pdf") return readAsDataUrl(file);
+
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new window.Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error("decode"));
+        el.src = url;
+      }).catch(() => null);
+      if (!img) return readAsDataUrl(file);
+
+      let dataUrl = "";
+      for (const [max, quality] of [[2048, 0.85], [1600, 0.75], [1280, 0.65], [1024, 0.6]]) {
         let { width, height } = img;
-        if (width > MAX || height > MAX) {
-          if (width >= height) { height = Math.round((height / width) * MAX); width = MAX; }
-          else { width = Math.round((width / height) * MAX); height = MAX; }
+        if (width > max || height > max) {
+          if (width >= height) { height = Math.round((height / width) * max); width = max; }
+          else { width = Math.round((width / height) * max); height = max; }
         }
         const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
         canvas.getContext("2d")?.drawImage(img, 0, 0, width, height);
-        resolve({ dataUrl: canvas.toDataURL("image/jpeg", 0.85), mimeType: "image/jpeg" });
-      };
-      img.onerror = () => {
-        const reader = new FileReader();
-        reader.onload = () => resolve({ dataUrl: reader.result as string, mimeType: file.type });
-        reader.readAsDataURL(file);
-      };
-      img.src = url;
-    });
+        dataUrl = canvas.toDataURL("image/jpeg", quality);
+        if (dataUrl.length <= MAX_SCAN_BASE64_CHARS) break;
+      }
+      return { dataUrl, mimeType: "image/jpeg" };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
 
   const handleScanInvoice = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reject oversized files before triggering any loading state
-    const MAX_FILE_SIZE_MB = 10;
-    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      toast.error(`File too large. Please upload a file under ${MAX_FILE_SIZE_MB}MB.`);
+    // Reject files that cannot fit before triggering any loading state
+    const isPdf = file.type === "application/pdf";
+    if (isPdf ? file.size > MAX_PDF_BYTES : file.size > MAX_IMAGE_BYTES) {
+      toast.error(
+        isPdf
+          ? "That PDF is too large to scan (3 MB at most). Upload a photo or screenshot of the invoice instead."
+          : "That picture is too large. Please use one under 25 MB.",
+      );
       e.target.value = "";
       return;
     }
 
     setScanning(true);
-    const modelLabel = scanMode === "pro" ? "Gemini Pro (High Accuracy)" : "Gemini Flash (Fast Mode)";
-    const toastId = toast.loading(`Scanning with ${modelLabel}...`);
+    const toastId = toast.loading("Scanning the invoice...");
 
     try {
-      const { dataUrl: base64Data, mimeType: compressedMime } = await compressImage(file);
-      const result = await scanInvoiceAction(base64Data, compressedMime, scanMode);
+      const { dataUrl: base64Data, mimeType: preparedMime } = await prepareScanFile(file);
+      if (base64Data.length > MAX_SCAN_BASE64_CHARS) {
+        toast.error("That file is too large to scan. Try a smaller picture or a screenshot.", { id: toastId });
+        return;
+      }
+      const result = await scanInvoiceAction(base64Data, preparedMime);
 
         if (result.success && result.data) {
           const parsed = result.data;
@@ -196,9 +223,11 @@ export function InvoiceForm(props: {
                   sno: li.sno ?? (idx + 1),
                   description: li.description ?? "",
                   hsnSac: li.hsnSac ?? "",
-                  unit: li.unit ?? "Nos",
-                  qty: Number(li.qty ?? 1),
-                  rate: Number(li.rate ?? 0),
+                  // Copied as printed on the scan; a figure the scan lacks stays blank for the user.
+                  unit: li.unit != null ? String(li.unit) : "",
+                  qty: li.qty != null ? String(li.qty) : "",
+                  rate: li.rate != null ? String(li.rate) : "",
+                  amount: li.amount != null ? String(li.amount) : "",
                 }))
               : invoice.lineItems,
           };
@@ -221,42 +250,30 @@ export function InvoiceForm(props: {
     }
   };
 
+  // The consignee fields are only filled in when there really is a different consignee. With the
+  // switch off they are empty and everything (preview, PDF, spreadsheet) uses the billed client,
+  // so nothing can be overwritten or go stale when the billed client's details change.
   const handleShippingToggle = (checked: boolean) => {
     setDifferentShipping(checked);
-    if (!checked) {
-      setClientField("shipToName", invoice.client.name);
-      setClientField("shipToAddress", invoice.client.address);
+    if (checked) {
+      if (!invoice.client.shipToName) setClientField("shipToName", invoice.client.name);
+      if (!invoice.client.shipToAddress) setClientField("shipToAddress", invoice.client.address);
+    } else {
+      for (const key of ["shipToName", "shipToAddress", "shipToGstin", "shipToState", "shipToStateCode"] as const) {
+        setClientField(key, "");
+      }
     }
   };
 
-  useEffect(() => {
-    if (!differentShipping) {
-      if (invoice.client.shipToName !== invoice.client.name) {
-        setClientField("shipToName", invoice.client.name);
-      }
-      if (invoice.client.shipToAddress !== invoice.client.address) {
-        setClientField("shipToAddress", invoice.client.address);
-      }
-    }
-  }, [
-    differentShipping,
-    invoice.client.name,
-    invoice.client.address,
-    invoice.client.shipToName,
-    invoice.client.shipToAddress,
-    setClientField,
-  ]);
-
-  const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, invoice.client.stateCode);
-  const totals = calculateTotals({
-    items: invoice.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+  // Same rule, rounding and company state (from Settings) as the preview, PDF and spreadsheet.
+  const { taxMode, amountInWords, ...totals } = calculateInvoiceTotals({
+    lineItems: invoice.lineItems,
     cgstRate: invoice.cgstRate,
     sgstRate: invoice.sgstRate,
     igstRate: invoice.igstRate,
-    taxMode,
+    company: props.company,
+    client: invoice.client,
   });
-
-  const amountInWords = amountInWordsINR(totals.grandTotal);
 
   const cardClass = "rounded-xl border border-border bg-card shadow-sm overflow-hidden";
 
@@ -264,19 +281,11 @@ export function InvoiceForm(props: {
   const validateStep = (step: number): string | null => {
     switch (step) {
       case 1:
-        if (!invoice.invoiceNo.trim()) return "Invoice number is required (Step 1).";
-        if (!invoice.invoiceDate.trim()) return "Invoice date is required (Step 1).";
-        return null;
+        return findDetailsProblem(invoice);
       case 2:
-        if (!invoice.client.name.trim()) return "Client name is required (Step 2).";
-        if (!invoice.client.gstin.trim()) return "Client GSTIN is required (Step 2).";
-        if (!invoice.client.address.trim()) return "Client address is required (Step 2).";
-        if (!invoice.client.state?.trim()) return "Client state is required (Step 2).";
-        return null;
+        return findClientProblem(invoice);
       case 3:
-        if (!invoice.lineItems.some((li) => li.description.trim() && Number(li.rate) > 0))
-          return "At least one line item with a description and rate is required (Step 3).";
-        return null;
+        return findLineItemsProblem(invoice);
       default:
         return null;
     }
@@ -371,7 +380,7 @@ export function InvoiceForm(props: {
                 <Input
                   value={invoice.invoiceNo}
                   onChange={(e) => setField("invoiceNo", e.target.value)}
-                  placeholder="RKE-2026-001"
+                  placeholder="Enter invoice number"
                 />
               </div>
               <div className="space-y-2">
@@ -424,6 +433,11 @@ export function InvoiceForm(props: {
                     <SelectItem value="QUOTATION">Quotation</SelectItem>
                   </SelectContent>
                 </Select>
+                {invoice.status === "DRAFT" ? (
+                  <p className="text-xs text-muted-foreground">
+                    A draft can be saved with details missing. Other statuses need every detail.
+                  </p>
+                ) : null}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -588,6 +602,7 @@ export function InvoiceForm(props: {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-4">
+              <ClientPicker clients={props.clients} onPick={(c) => setDifferentShipping(shipsElsewhere(c))} />
               <div className="space-y-2">
                 <Label>Billing Name</Label>
                 <Input
@@ -743,28 +758,25 @@ export function InvoiceForm(props: {
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1.5">
                     <Label className="text-xs">CGST %</Label>
-                    <Input
-                      inputMode="decimal"
-                      value={String(invoice.cgstRate)}
-                      onChange={(e) => setField("cgstRate", Number(e.target.value))}
+                    <DecimalInput
+                      value={invoice.cgstRate}
+                      onChange={(n) => setField("cgstRate", n ?? 0)}
                       disabled={taxMode !== "INTRA_STATE"}
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">SGST %</Label>
-                    <Input
-                      inputMode="decimal"
-                      value={String(invoice.sgstRate)}
-                      onChange={(e) => setField("sgstRate", Number(e.target.value))}
+                    <DecimalInput
+                      value={invoice.sgstRate}
+                      onChange={(n) => setField("sgstRate", n ?? 0)}
                       disabled={taxMode !== "INTRA_STATE"}
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">IGST %</Label>
-                    <Input
-                      inputMode="decimal"
-                      value={String(invoice.igstRate)}
-                      onChange={(e) => setField("igstRate", Number(e.target.value))}
+                    <DecimalInput
+                      value={invoice.igstRate}
+                      onChange={(n) => setField("igstRate", n ?? 0)}
                       disabled={taxMode !== "INTER_STATE"}
                     />
                   </div>
@@ -839,17 +851,6 @@ export function InvoiceForm(props: {
           </div>
 
           <div className="relative flex flex-col items-center -mt-9">
-            <div className="absolute -top-15 flex items-center rounded-full border border-border bg-card backdrop-blur pl-3.5 pr-2 py-1 shadow-md select-none gap-2 z-50">
-              <Label htmlFor="mobile-scan-mode" className="text-xs font-medium text-muted-foreground cursor-pointer">
-                Pro
-              </Label>
-              <Switch
-                id="mobile-scan-mode"
-                checked={scanMode === "pro"}
-                onCheckedChange={(checked) => setScanMode(checked ? "pro" : "flash")}
-              />
-            </div>
-
             <button
               type="button"
               disabled={scanning}
@@ -924,33 +925,6 @@ export function InvoiceForm(props: {
             id="ai-invoice-scan"
             onChange={handleScanInvoice}
           />
-          {/* Scan Mode Toggle */}
-          <div className="flex items-center rounded-lg border border-border bg-muted/50 p-0.5 select-none text-xs">
-            <button
-              type="button"
-              onClick={() => setScanMode("flash")}
-              className={cn(
-                "px-2.5 py-1.5 text-[11px] font-medium rounded-md transition-all duration-150 cursor-pointer",
-                scanMode === "flash"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Flash
-            </button>
-            <button
-              type="button"
-              onClick={() => setScanMode("pro")}
-              className={cn(
-                "px-2.5 py-1.5 text-[11px] font-medium rounded-md transition-all duration-150 cursor-pointer",
-                scanMode === "pro"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Pro
-            </button>
-          </div>
           <Button
             type="button"
             variant="outline"
@@ -987,7 +961,7 @@ export function InvoiceForm(props: {
               <Input
                 value={invoice.invoiceNo}
                 onChange={(e) => setField("invoiceNo", e.target.value)}
-                placeholder="RKE-2026-001"
+                placeholder="Enter invoice number"
               />
             </div>
             <div className="space-y-2">
@@ -1078,6 +1052,11 @@ export function InvoiceForm(props: {
                   <SelectItem value="QUOTATION">Quotation</SelectItem>
                 </SelectContent>
               </Select>
+              {invoice.status === "DRAFT" ? (
+                <p className="text-xs text-muted-foreground">
+                  A draft can be saved with details missing. Other statuses need every detail.
+                </p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label>E-Way Bill No.</Label>
@@ -1163,6 +1142,7 @@ export function InvoiceForm(props: {
             Billed & Shipped Consignee
           </AccordionTrigger>
           <AccordionContent className="p-5 grid gap-4 md:grid-cols-2">
+            <ClientPicker clients={props.clients} onPick={(c) => setDifferentShipping(shipsElsewhere(c))} />
             <div className="space-y-2">
               <Label>Billing Name</Label>
               <Input
@@ -1348,30 +1328,27 @@ export function InvoiceForm(props: {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label>CGST %</Label>
-              <Input
-                inputMode="decimal"
-                value={String(invoice.cgstRate)}
-                onChange={(e) => setField("cgstRate", Number(e.target.value))}
-                disabled={taxMode !== "INTRA_STATE"}
-              />
+              <DecimalInput
+                      value={invoice.cgstRate}
+                      onChange={(n) => setField("cgstRate", n ?? 0)}
+                      disabled={taxMode !== "INTRA_STATE"}
+                    />
             </div>
             <div className="space-y-2">
               <Label>SGST %</Label>
-              <Input
-                inputMode="decimal"
-                value={String(invoice.sgstRate)}
-                onChange={(e) => setField("sgstRate", Number(e.target.value))}
-                disabled={taxMode !== "INTRA_STATE"}
-              />
+              <DecimalInput
+                      value={invoice.sgstRate}
+                      onChange={(n) => setField("sgstRate", n ?? 0)}
+                      disabled={taxMode !== "INTRA_STATE"}
+                    />
             </div>
             <div className="space-y-2">
               <Label>IGST %</Label>
-              <Input
-                inputMode="decimal"
-                value={String(invoice.igstRate)}
-                onChange={(e) => setField("igstRate", Number(e.target.value))}
-                disabled={taxMode !== "INTER_STATE"}
-              />
+              <DecimalInput
+                      value={invoice.igstRate}
+                      onChange={(n) => setField("igstRate", n ?? 0)}
+                      disabled={taxMode !== "INTER_STATE"}
+                    />
             </div>
           </div>
 

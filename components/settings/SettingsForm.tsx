@@ -1,12 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Save, Trash2, Upload, Building2, CreditCard, Sliders, PenTool } from "lucide-react";
+import { Save, Trash2, Upload, Building2, CreditCard, Sliders, PenTool, KeyRound } from "lucide-react";
 
+import { changePassword } from "@/app/actions/account";
 import { updateCompanySettings } from "@/app/actions/settings";
 import { Button } from "@/components/ui/button";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { INDIAN_STATES, normalizeStateCode } from "@/lib/states";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -63,6 +73,47 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
       return null;
     }
   });
+
+  const sortedStates = useMemo(
+    () => [...INDIAN_STATES].sort((a, b) => a.name.localeCompare(b.name)),
+    [],
+  );
+  const selectedState = INDIAN_STATES.find(
+    (s) =>
+      s.code === normalizeStateCode(form.stateCode) ||
+      s.name.toLowerCase() === (form.state ?? "").trim().toLowerCase(),
+  );
+  const pickState = (state: { name: string; code: string }) =>
+    setForm((p) => ({ ...p, state: state.name, stateCode: state.code }));
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, startPasswordChange] = useTransition();
+
+  const submitPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error("The new password and its confirmation do not match.");
+      return;
+    }
+    startPasswordChange(async () => {
+      try {
+        const res = await changePassword({ currentPassword, newPassword });
+        if (res.ok) {
+          toast.success("Password changed");
+          setCurrentPassword("");
+          setNewPassword("");
+          setConfirmPassword("");
+        } else {
+          toast.error(res.error);
+        }
+      } catch (err) {
+        toast.error("Could not change the password");
+        console.error(err);
+      }
+    });
+  };
 
   const save = () => {
     startTransition(async () => {
@@ -142,19 +193,48 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
           </div>
           <div className="space-y-2">
             <Label>Company State</Label>
-            <Input
-              value={form.state ?? ""}
-              onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))}
-              placeholder="e.g. Uttar Pradesh"
-            />
+            <Select
+              value={selectedState?.name ?? ""}
+              onValueChange={(val) => {
+                const found = INDIAN_STATES.find((s) => s.name === val);
+                if (found) pickState(found);
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select State" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortedStates.map((s) => (
+                  <SelectItem key={s.code} value={s.name}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Decides CGST + SGST (client in this state) or IGST (client elsewhere).
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Company State Code</Label>
-            <Input
-              value={form.stateCode ?? ""}
-              onChange={(e) => setForm((p) => ({ ...p, stateCode: e.target.value }))}
-              placeholder="e.g. 09"
-            />
+            <Select
+              value={selectedState?.code ?? ""}
+              onValueChange={(val) => {
+                const found = INDIAN_STATES.find((s) => s.code === val);
+                if (found) pickState(found);
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Code" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortedStates.map((s) => (
+                  <SelectItem key={s.code} value={s.code}>
+                    {s.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Email</Label>
@@ -284,40 +364,23 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
         <div className="p-6 grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label>CGST %</Label>
-            <Input
-              inputMode="decimal"
-              value={String(form.defaultCgstRate)}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, defaultCgstRate: Number(e.target.value) }))
-              }
+            <DecimalInput
+              value={form.defaultCgstRate}
+              onChange={(n) => setForm((p) => ({ ...p, defaultCgstRate: n ?? 0 }))}
             />
           </div>
           <div className="space-y-2">
             <Label>SGST %</Label>
-            <Input
-              inputMode="decimal"
-              value={String(form.defaultSgstRate)}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, defaultSgstRate: Number(e.target.value) }))
-              }
+            <DecimalInput
+              value={form.defaultSgstRate}
+              onChange={(n) => setForm((p) => ({ ...p, defaultSgstRate: n ?? 0 }))}
             />
           </div>
           <div className="space-y-2">
             <Label>IGST %</Label>
-            <Input
-              inputMode="decimal"
-              value={String(form.defaultIgstRate)}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, defaultIgstRate: Number(e.target.value) }))
-              }
-            />
-          </div>
-          <div className="space-y-2 md:col-span-3">
-            <Label>Invoice Prefix / Format</Label>
-            <Input
-              value={form.invoicePrefix ?? ""}
-              onChange={(e) => setForm((p) => ({ ...p, invoicePrefix: e.target.value }))}
-              placeholder="RKE-2026-"
+            <DecimalInput
+              value={form.defaultIgstRate}
+              onChange={(n) => setForm((p) => ({ ...p, defaultIgstRate: n ?? 0 }))}
             />
           </div>
           <div className="space-y-2 md:col-span-3">
@@ -331,6 +394,56 @@ export function SettingsForm(props: { initial: CompanySettingsFormData }) {
             />
           </div>
         </div>
+      </div>
+
+      {/* Account security */}
+      <div className={sectionClass}>
+        <div className="border-b border-border px-6 py-4 flex items-center gap-2">
+          <KeyRound className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Change Password</h2>
+        </div>
+        <form onSubmit={submitPassword} className="p-6 grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="current-password">Current password</Label>
+            <Input
+              id="current-password"
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="new-password">New password</Label>
+            <Input
+              id="new-password"
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Confirm new password</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
+          <div className="md:col-span-3 flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">At least 10 characters.</p>
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={changingPassword || !currentPassword || !newPassword}
+            >
+              {changingPassword ? "Changing..." : "Change password"}
+            </Button>
+          </div>
+        </form>
       </div>
 
       {/* Local Signature */}

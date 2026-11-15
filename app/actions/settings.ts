@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/db";
 import { requireSessionUser } from "@/lib/auth";
+import { normalizeStateCode } from "@/lib/states";
 
 const settingsSchema = z.object({
   id: z.number().int(),
@@ -25,9 +26,9 @@ const settingsSchema = z.object({
   signatureUrl: z.string().optional().nullable(),
   invoicePrefix: z.string().optional().nullable(),
 
-  defaultCgstRate: z.number().nonnegative(),
-  defaultSgstRate: z.number().nonnegative(),
-  defaultIgstRate: z.number().nonnegative(),
+  defaultCgstRate: z.number().nonnegative().max(100),
+  defaultSgstRate: z.number().nonnegative().max(100),
+  defaultIgstRate: z.number().nonnegative().max(100),
 
   termsAndConditions: z.string().optional().nullable(),
   tagline: z.string().optional().nullable(),
@@ -77,7 +78,7 @@ export async function updateCompanySettings(input: z.infer<typeof settingsSchema
       termsAndConditions: data.termsAndConditions ?? null,
       tagline: data.tagline ?? null,
       accountType: data.accountType ?? null,
-      stateCode: data.stateCode ?? null,
+      stateCode: data.stateCode ? normalizeStateCode(data.stateCode) : null,
       state: data.state ?? null,
     },
   });

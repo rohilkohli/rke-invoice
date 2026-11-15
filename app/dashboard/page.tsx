@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { TrendingUp, CreditCard, Clock, Plus } from "lucide-react";
+import { TrendingUp, Plus } from "lucide-react";
 
 import { prisma } from "@/lib/db";
-import { getOrCreateCompanySettings } from "@/lib/bootstrap";
-import { resolveLogoDataUrl } from "@/lib/resolveLogoUrl";
+import { BILLED_STATUSES } from "@/lib/invoiceStatus";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { InvoiceTableClient } from "@/components/dashboard/InvoiceTableClient";
@@ -12,6 +11,11 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+// Deleting an invoice also clears it from Google Drive after the reply.
+export const maxDuration = 60;
+
+/** Rows loaded for the list. Each is a few small fields, so this is cheap even at the limit. */
+const LIST_LIMIT = 5000;
 
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -26,33 +30,38 @@ export default async function DashboardPage() {
   const now = new Date();
   const monthStart = startOfMonth(now);
 
-  const [company, monthlyInvoices, invoices] = await Promise.all([
-    getOrCreateCompanySettings(user.id),
-    // Metrics query: only current-month invoices, no take limit, lightweight select
+  const [monthlyInvoices, invoices, totalCount] = await Promise.all([
+    // Metrics query: only this month's billed invoices (not quotations), lightweight select
     prisma.invoice.findMany({
       where: {
         userId: user.id,
         invoiceDate: { gte: monthStart },
+        status: { in: BILLED_STATUSES },
       },
-      select: { grandTotal: true, status: true },
+      select: { grandTotal: true },
     }),
-    // Table query: most recent 100 invoices for display
+    // Table query: only the few fields the list shows, never whole rows
     prisma.invoice.findMany({
       where: { userId: user.id },
-      include: { client: true },
+      select: {
+        id: true,
+        invoiceNo: true,
+        invoiceDate: true,
+        grandTotal: true,
+        status: true,
+        clientName: true,
+        client: { select: { name: true } },
+      },
       orderBy: [{ invoiceDate: "desc" }, { id: "desc" }],
-      take: 100,
+      take: LIST_LIMIT,
     }),
+    prisma.invoice.count({ where: { userId: user.id } }),
   ]);
 
   const totalInvoiced = monthlyInvoices.reduce(
     (sum, i) => sum + Number(i.grandTotal),
     0,
   );
-  const totalPaid = monthlyInvoices
-    .filter((i) => i.status === "PAID")
-    .reduce((sum, i) => sum + Number(i.grandTotal), 0);
-  const pending = totalInvoiced - totalPaid;
 
   const format = (n: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -65,29 +74,11 @@ export default async function DashboardPage() {
     {
       label: "Total Invoiced",
       value: format(totalInvoiced),
-      subtext: "This month",
+      subtext: "This month, excluding quotations",
       icon: TrendingUp,
       color: "text-blue-600 dark:text-blue-400",
       bg: "bg-blue-500/10",
       border: "border-blue-500/50 dark:border-blue-500/40",
-    },
-    {
-      label: "Paid",
-      value: format(totalPaid),
-      subtext: "This month",
-      icon: CreditCard,
-      color: "text-emerald-600 dark:text-emerald-400",
-      bg: "bg-emerald-500/10",
-      border: "border-emerald-500/50 dark:border-emerald-500/40",
-    },
-    {
-      label: "Pending",
-      value: format(pending),
-      subtext: "Outstanding",
-      icon: Clock,
-      color: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-500/10",
-      border: "border-amber-500/60 dark:border-amber-500/40",
     },
   ];
 
@@ -141,8 +132,12 @@ export default async function DashboardPage() {
       <div className="rounded-xl border border-border bg-card shadow-sm">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div>
-            <h2 className="text-base font-semibold">Recent Invoices</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{invoices.length} invoices total</p>
+            <h2 className="text-base font-semibold">Invoices</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {totalCount > invoices.length
+                ? `Showing the latest ${invoices.length} of ${totalCount} invoices`
+                : `${totalCount} invoice${totalCount === 1 ? "" : "s"} in total`}
+            </p>
           </div>
         </div>
         <div className="p-5">
@@ -150,31 +145,11 @@ export default async function DashboardPage() {
             rows={invoices.map((inv) => ({
               id: inv.id,
               invoiceNo: inv.invoiceNo,
-              clientName: inv.client.name,
+              clientName: inv.clientName ?? inv.client.name,
               invoiceDate: inv.invoiceDate.toISOString().slice(0, 10),
               amount: Number(inv.grandTotal),
               status: inv.status,
-              pdfName: inv.pdfName,
             }))}
-            company={{
-              companyName: company.companyName,
-              gstin: company.gstin,
-              address: company.address,
-              email: company.email,
-              phone: company.phone,
-              bankName: company.bankName,
-              branch: company.branch,
-              accountNo: company.accountNo,
-              ifsc: company.ifsc,
-              upiId: company.upiId,
-              logoUrl: resolveLogoDataUrl(company.logoUrl),
-              termsAndConditions: company.termsAndConditions,
-              tagline: company.tagline,
-              accountType: company.accountType,
-              stateCode: company.stateCode,
-              state: company.state,
-              gdriveWebhookUrl: company.gdriveWebhookUrl,
-            }}
           />
         </div>
       </div>

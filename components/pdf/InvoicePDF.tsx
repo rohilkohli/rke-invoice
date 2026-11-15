@@ -1,6 +1,5 @@
 import {
   Document,
-  Font,
   Image as PdfImage,
   Page,
   StyleSheet,
@@ -9,43 +8,23 @@ import {
 } from "@react-pdf/renderer";
 
 import type { InvoiceFormData } from "@/components/invoice/types";
+import { registerBrowserPdfFonts } from "@/components/pdf/fonts";
 import type { CompanySettingsPreview } from "@/components/invoice/InvoicePreview";
 import {
   amountInWordsINR,
-  calculateLineAmount,
-  calculateTotals,
-  getTaxMode,
+  calculateInvoiceTotals,
+  lineAmount,
+  parseAmountPaise,
+  roundMoney,
+  taxOnPaise,
 } from "@/lib/calculations";
 import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
 
 export type InvoiceCopy = "ORIGINAL" | "DUPLICATE" | "TRIPLICATE";
 
-// Register font with full Unicode support including Rupee symbol (₹) and all font styles
-Font.register({
-  family: "Arimo",
-  fonts: [
-    {
-      src: "https://raw.githubusercontent.com/google/fonts/main/ofl/arimo/Arimo%5Bwght%5D.ttf",
-      fontWeight: "normal",
-      fontStyle: "normal",
-    },
-    {
-      src: "https://raw.githubusercontent.com/google/fonts/main/ofl/arimo/Arimo%5Bwght%5D.ttf",
-      fontWeight: "bold",
-      fontStyle: "normal",
-    },
-    {
-      src: "https://raw.githubusercontent.com/google/fonts/main/ofl/arimo/Arimo-Italic%5Bwght%5D.ttf",
-      fontWeight: "normal",
-      fontStyle: "italic",
-    },
-    {
-      src: "https://raw.githubusercontent.com/google/fonts/main/ofl/arimo/Arimo-Italic%5Bwght%5D.ttf",
-      fontWeight: "bold",
-      fontStyle: "italic",
-    },
-  ],
-});
+// The font (with the rupee sign) is registered here in the browser. On the server it is registered
+// from the files on disk by lib/generatePdfServer.ts. See components/pdf/fonts.ts.
+if (typeof window !== "undefined") registerBrowserPdfFonts();
 
 const styles = StyleSheet.create({
   page: {
@@ -235,7 +214,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   colDesc: {
-    flex: 3.5,
+    flex: 3.1,
     paddingHorizontal: 4,
     borderRightWidth: 0.5,
     borderRightColor: "#000",
@@ -263,7 +242,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   colQty: {
-    flex: 0.5,
+    flex: 0.7,
     textAlign: "right",
     paddingRight: 4,
     borderRightWidth: 0.5,
@@ -271,7 +250,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   colRate: {
-    flex: 0.9,
+    flex: 1.1,
     textAlign: "right",
     paddingRight: 4,
     borderRightWidth: 0.5,
@@ -480,18 +459,16 @@ export function InvoicePDF(props: {
   copy: InvoiceCopy;
   qrDataUrl?: string | null;
 }) {
-  const companyStateCode = props.company.stateCode ?? DEFAULT_COMPANY_STATE.stateCode;
-  const taxMode = getTaxMode(companyStateCode, props.invoice.client.stateCode);
-  const totals = calculateTotals({
-    items: props.invoice.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+  // The same figures, tax rule and rounding as the form, the spreadsheet and the server.
+  const { taxMode, amountInWords, ...totals } = calculateInvoiceTotals({
+    lineItems: props.invoice.lineItems,
     cgstRate: props.invoice.cgstRate,
     sgstRate: props.invoice.sgstRate,
     igstRate: props.invoice.igstRate,
-    taxMode,
+    company: props.company,
+    client: props.invoice.client,
   });
-
-  const amountInWords = amountInWordsINR(totals.grandTotal);
-  const taxTotal = totals.cgst + totals.sgst + totals.igst;
+  const taxTotal = roundMoney(totals.cgst + totals.sgst + totals.igst);
   const taxInWords = amountInWordsINR(taxTotal);
 
   // Fill up table rows to minimum 5
@@ -502,52 +479,35 @@ export function InvoicePDF(props: {
       description: "",
       hsnSac: "",
       unit: "",
-      qty: 0,
-      rate: 0,
+      qty: "",
+      rate: "",
+      amount: "",
     });
   }
 
-  // Calculate HSN/SAC Tax Breakdown
-  const hsnMap: Record<
-    string,
-    {
-      hsn: string;
-      taxableValue: number;
-      cgstAmt: number;
-      sgstAmt: number;
-      igstAmt: number;
-      totalTax: number;
-    }
-  > = {};
-
+  // Calculate HSN/SAC Tax Breakdown, in whole paise like the totals
+  const taxableByHsn: Record<string, { hsn: string; taxablePaise: number }> = {};
   props.invoice.lineItems.forEach((item) => {
     const hsn = item.hsnSac || "998719";
-    const taxableValue = (Number(item.qty) || 0) * (Number(item.rate) || 0);
-
-    let cgstAmt = 0;
-    let sgstAmt = 0;
-    let igstAmt = 0;
-
-    if (taxMode === "INTRA_STATE") {
-      cgstAmt = (taxableValue * props.invoice.cgstRate) / 100;
-      sgstAmt = (taxableValue * props.invoice.sgstRate) / 100;
-    } else {
-      igstAmt = (taxableValue * props.invoice.igstRate) / 100;
-    }
-
-    const totalTax = cgstAmt + sgstAmt + igstAmt;
-
-    if (!hsnMap[hsn]) {
-      hsnMap[hsn] = { hsn, taxableValue: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, totalTax: 0 };
-    }
-    hsnMap[hsn].taxableValue += taxableValue;
-    hsnMap[hsn].cgstAmt += cgstAmt;
-    hsnMap[hsn].sgstAmt += sgstAmt;
-    hsnMap[hsn].igstAmt += igstAmt;
-    hsnMap[hsn].totalTax += totalTax;
+    const paise = parseAmountPaise(item.amount);
+    if (!taxableByHsn[hsn]) taxableByHsn[hsn] = { hsn, taxablePaise: 0 };
+    taxableByHsn[hsn].taxablePaise += Number.isNaN(paise) ? 0 : paise;
   });
 
-  const hsnRows = Object.values(hsnMap);
+  const hsnRows = Object.values(taxableByHsn).map(({ hsn, taxablePaise }) => {
+    const intra = taxMode === "INTRA_STATE";
+    const cgstAmt = intra ? taxOnPaise(taxablePaise, props.invoice.cgstRate) / 100 : 0;
+    const sgstAmt = intra ? taxOnPaise(taxablePaise, props.invoice.sgstRate) / 100 : 0;
+    const igstAmt = intra ? 0 : taxOnPaise(taxablePaise, props.invoice.igstRate) / 100;
+    return {
+      hsn,
+      taxableValue: taxablePaise / 100,
+      cgstAmt,
+      sgstAmt,
+      igstAmt,
+      totalTax: roundMoney(cgstAmt + sgstAmt + igstAmt),
+    };
+  });
 
   const logoSrc = resolveLogoSrc(props.company.logoUrl);
 
@@ -717,20 +677,20 @@ export function InvoicePDF(props: {
             <View style={styles.colGst}><Text>GST Rate</Text></View>
             <View style={styles.colUom}><Text>UOM</Text></View>
             <View style={styles.colQty}><Text>Qty</Text></View>
-            <View style={styles.colRate}><Text>Rate (₹)</Text></View>
+            <View style={styles.colRate}><Text>Rate</Text></View>
             <View style={styles.colAmt}><Text>Amount (₹)</Text></View>
           </View>
 
           {lineItemsToDisplay.map((item, idx) => {
             const hasData = Boolean(item.description);
-            const lineAmt = hasData ? calculateLineAmount(item.qty, item.rate) : 0;
+            const lineAmt = hasData ? lineAmount(item.amount) : 0;
             const isLast = idx === lineItemsToDisplay.length - 1;
 
             let itemGstRate = "-";
             if (hasData) {
               itemGstRate =
                 taxMode === "INTRA_STATE"
-                  ? `${props.invoice.cgstRate + props.invoice.sgstRate}%`
+                  ? `${Number((props.invoice.cgstRate + props.invoice.sgstRate).toFixed(2))}%`
                   : `${props.invoice.igstRate}%`;
             }
 
@@ -749,7 +709,7 @@ export function InvoicePDF(props: {
                 <View style={styles.colGst}><Text>{itemGstRate}</Text></View>
                 <View style={styles.colUom}><Text>{item.unit || ""}</Text></View>
                 <View style={styles.colQty}><Text>{hasData ? item.qty : ""}</Text></View>
-                <View style={styles.colRate}><Text>{hasData ? inr(Number(item.rate) || 0) : ""}</Text></View>
+                <View style={styles.colRate}><Text>{hasData ? item.rate : ""}</Text></View>
                 <View style={styles.colAmt}><Text>{hasData ? inr(lineAmt) : ""}</Text></View>
               </View>
             );
@@ -891,11 +851,11 @@ export function InvoicePDF(props: {
             {/* QR Code */}
             <View style={[styles.qrContainer, { marginTop: 4 }]}>
               {props.qrDataUrl ? (
-                <PdfImage src={props.qrDataUrl} style={{ width: 62, height: 62 }} />
-              ) : (
-                <View style={{ width: 62, height: 62, borderWidth: 0.5, borderColor: "#000" }} />
-              )}
-              <Text style={styles.qrLabel}>Scan for Details</Text>
+                <>
+                  <PdfImage src={props.qrDataUrl} style={{ width: 62, height: 62 }} />
+                  <Text style={styles.qrLabel}>Scan for Details</Text>
+                </>
+              ) : null}
             </View>
           </View>
 

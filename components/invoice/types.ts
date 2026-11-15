@@ -2,7 +2,6 @@ export type InvoiceStatus = "DRAFT" | "SENT" | "PAID" | "QUOTATION";
 export type SignatureType = "DRAWN" | "UPLOADED" | "TYPED";
 
 export type ClientForm = {
-  id?: number;
   name: string;
   address: string;
   gstin: string;
@@ -15,13 +14,26 @@ export type ClientForm = {
   shipToStateCode?: string;
 };
 
+/** A client the user has billed before, as offered by the client picker. */
+export type SavedClient = ClientForm & { id: number };
+
+/** What the editor knows about Google Drive for the invoice on screen. */
+export type DriveStatus = {
+  enabled: boolean;
+  syncedAt: string | null;
+  error: string | null;
+};
+
 export type LineItemForm = {
   sno: number;
   description: string;
   hsnSac?: string;
+  // Free text, printed exactly as typed. Nothing is ever calculated from these three.
   unit: string;
-  qty: number | string;
-  rate: number | string;
+  qty: string;
+  rate: string;
+  // Typed by the user (e.g. "1,50,000"); the only line figure that feeds the totals.
+  amount: string;
 
   equipmentId?: number | null;
   meterStart?: number | null;

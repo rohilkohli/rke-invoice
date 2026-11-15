@@ -24,7 +24,6 @@ export type CompanySettingsPreview = {
   accountType?: string | null;
   stateCode?: string | null;
   state?: string | null;
-  gdriveWebhookUrl?: string | null;
 };
 
 export function InvoicePreview(props: {

@@ -13,7 +13,12 @@ import {
   FolderCheck
 } from "lucide-react";
 import { toast } from "sonner";
-import { saveGDriveWebhookAction, testGDriveConnectionAction, syncAllDataAction } from "@/app/actions/gdrive";
+import {
+  getGDriveScriptAction,
+  saveGDriveWebhookAction,
+  syncAllDataAction,
+  testGDriveConnectionAction,
+} from "@/app/actions/gdrive";
 
 interface GDriveSettingsCardProps {
   initialWebhookUrl?: string | null;
@@ -22,7 +27,7 @@ interface GDriveSettingsCardProps {
 export function GDriveSettingsCard({ initialWebhookUrl }: GDriveSettingsCardProps) {
   const [webhookUrl, setWebhookUrl] = useState(initialWebhookUrl || "");
   const [showScript, setShowScript] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error" | "info" | "warning"; text: string } | null>(null);
 
   const [isSaving, startSaving] = useTransition();
   const [isTesting, startTesting] = useTransition();
@@ -51,7 +56,10 @@ export function GDriveSettingsCard({ initialWebhookUrl }: GDriveSettingsCardProp
     startTesting(async () => {
       setStatusMessage(null);
       const res = await testGDriveConnectionAction(webhookUrl);
-      if (res.success) {
+      if (res.success && "warning" in res && res.warning) {
+        toast.warning(res.warning, { duration: 12000 });
+        setStatusMessage({ type: "warning", text: `Connected, but: ${res.warning}` });
+      } else if (res.success) {
         toast.success(res.message || "Connected to Google Drive!");
         setStatusMessage({ type: "success", text: res.message || "Connected to Google Drive Webhook!" });
       } else {
@@ -76,12 +84,12 @@ export function GDriveSettingsCard({ initialWebhookUrl }: GDriveSettingsCardProp
     });
   };
 
+  // The script comes from the server with this account's private key already inside it.
   const copyScript = async () => {
     try {
-      const scriptRes = await fetch("/rke-gdrive-script.gs");
-      const text = await scriptRes.text();
-      await navigator.clipboard.writeText(text);
-      toast.success("Google Apps Script code copied to clipboard!");
+      const { script } = await getGDriveScriptAction();
+      await navigator.clipboard.writeText(script);
+      toast.success("Script copied. It includes your private key, so paste it only into your own Apps Script project.");
     } catch {
       toast.error("Failed to copy script.");
     }
@@ -148,6 +156,8 @@ export function GDriveSettingsCard({ initialWebhookUrl }: GDriveSettingsCardProp
                 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
                 : statusMessage.type === "error"
                 ? "bg-destructive/10 text-destructive border border-destructive/20"
+                : statusMessage.type === "warning"
+                ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
                 : "bg-blue-500/10 text-blue-700 dark:text-blue-400"
             }`}
           >
@@ -201,11 +211,11 @@ export function GDriveSettingsCard({ initialWebhookUrl }: GDriveSettingsCardProp
             </button>
           </div>
           <ol className="list-decimal list-inside text-muted-foreground space-y-1 text-[11px] leading-relaxed">
-            <li>Open <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">script.google.com</a> and click <strong>+ New project</strong>.</li>
-            <li>Paste this script into <strong>Code.gs</strong> (replacing existing code).</li>
-            <li>Click <strong>Deploy</strong> &rarr; <strong>New deployment</strong> &rarr; Select <strong>Web app</strong> (gear icon).</li>
-            <li>Set <em>Execute as: Me</em> and <em>Who has access: Anyone</em>, then click <strong>Deploy</strong>.</li>
-            <li>Copy the Web App URL and paste it into the input box above!</li>
+            <li>Click <strong>Copy Script</strong>. It already contains a private key made for your account; the script refuses any request without it.</li>
+            <li>Open <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">script.google.com</a>, click <strong>+ New project</strong> and paste the script into <strong>Code.gs</strong> (replacing existing code).</li>
+            <li>Click <strong>Deploy</strong> &rarr; <strong>New deployment</strong> &rarr; Select <strong>Web app</strong> (gear icon). Set <em>Execute as: Me</em> and <em>Who has access: Anyone</em>, then <strong>Deploy</strong>.</li>
+            <li>Copy the Web App URL (it ends in <code>/exec</code>) into the box above, then press <strong>Save</strong> and <strong>Test</strong>.</li>
+            <li>Already set up before? Copy the script again, paste it over the old one and use <strong>Deploy</strong> &rarr; <strong>Manage deployments</strong> &rarr; pencil &rarr; <strong>New version</strong>.</li>
           </ol>
         </div>
       )}

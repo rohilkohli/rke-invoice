@@ -2,8 +2,23 @@ import * as XLSX from "xlsx";
 
 import type { InvoiceFormData } from "@/components/invoice/types";
 import type { CompanySettingsPreview } from "@/components/invoice/InvoicePreview";
-import { amountInWordsINR, calculateTotals, getTaxMode, roundMoney } from "@/lib/calculations";
-import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
+import { calculateInvoiceTotals, lineAmount } from "@/lib/calculations";
+
+/**
+ * A worksheet name Excel accepts: none of \ / ? * [ ] :, at most 31 characters, and not one that
+ * is already used in the same workbook (two long invoice numbers can share their first 31 letters).
+ */
+export function sanitizeSheetName(raw: string, used: Set<string>): string {
+  const base =
+    raw.replace(/[\\/?*[\]:]/g, "-").replace(/^'+|'+$/g, "").trim().slice(0, 31) || "Invoice";
+  let name = base;
+  for (let n = 2; used.has(name.toLowerCase()); n++) {
+    const suffix = ` (${n})`;
+    name = base.slice(0, 31 - suffix.length) + suffix;
+  }
+  used.add(name.toLowerCase());
+  return name;
+}
 
 export function buildInvoiceWorkbook(params: {
   invoice: InvoiceFormData;
@@ -20,16 +35,14 @@ export function buildInvoiceSheet(params: {
   company: CompanySettingsPreview;
 }) {
   const { invoice, company } = params;
-  const taxMode = getTaxMode(DEFAULT_COMPANY_STATE.stateCode, invoice.client.stateCode);
-  const totals = calculateTotals({
-    items: invoice.lineItems.map((li) => ({ qty: li.qty, rate: li.rate })),
+  const { taxMode, amountInWords, ...totals } = calculateInvoiceTotals({
+    lineItems: invoice.lineItems,
     cgstRate: invoice.cgstRate,
     sgstRate: invoice.sgstRate,
     igstRate: invoice.igstRate,
-    taxMode,
+    company,
+    client: invoice.client,
   });
-
-  const amountInWords = amountInWordsINR(totals.grandTotal);
   const gstPaidReverse = invoice.reverseCharge ? "Yes" : "No";
 
   const billPeriod = invoice.billPeriodStart && invoice.billPeriodEnd
@@ -48,10 +61,10 @@ export function buildInvoiceSheet(params: {
   aoa.push([]);
 
   // Row 4-7: Company details on left, Meta details on right
-  const vendorName = company.companyName || "M/S RADHA KISHAN ENTERPRISES";
-  const tagline = "Rental Service of Heavy Engineering Equipments";
+  const vendorName = company.companyName;
+  const tagline = company.tagline || "";
   const address = company.address || "";
-  const companyGstin = `GSTIN: ${company.gstin || "09ABCFR1989E1ZX"}`;
+  const companyGstin = `GSTIN: ${company.gstin || "-"}`;
 
   aoa.push([vendorName, "", "Invoice No", invoice.invoiceNo]);
   aoa.push([tagline, "", "Invoice Date", invoice.invoiceDate]);
@@ -70,9 +83,9 @@ export function buildInvoiceSheet(params: {
   const clientAddress = invoice.client.address;
   const shipToAddress = invoice.client.shipToAddress || clientAddress;
   const clientGstin = `GSTIN: ${invoice.client.gstin || "-"}`;
-  const shipToGstin = `GSTIN: ${invoice.client.gstin || "-"}`;
+  const shipToGstin = `GSTIN: ${invoice.client.shipToGstin || invoice.client.gstin || "-"}`;
   const clientState = `State: ${invoice.client.state} (${invoice.client.stateCode})`;
-  const shipToState = `State: ${invoice.client.state} (${invoice.client.stateCode})`;
+  const shipToState = `State: ${invoice.client.shipToState || invoice.client.state} (${invoice.client.shipToStateCode || invoice.client.stateCode})`;
 
   aoa.push([clientName, "", "", shipToName]);
   aoa.push([clientAddress, "", "", shipToAddress]);
@@ -96,9 +109,9 @@ export function buildInvoiceSheet(params: {
 
   // Data rows
   invoice.lineItems.forEach((li, idx) => {
-    const totalAmt = roundMoney((Number(li.qty) || 0) * (Number(li.rate) || 0));
+    const totalAmt = lineAmount(li.amount);
     const gstRate = taxMode === "INTRA_STATE"
-      ? `${invoice.cgstRate + invoice.sgstRate}%`
+      ? `${Number((invoice.cgstRate + invoice.sgstRate).toFixed(2))}%`
       : `${invoice.igstRate}%`;
 
     aoa.push([
@@ -118,7 +131,7 @@ export function buildInvoiceSheet(params: {
 
   // Summary section
   const subtotal = totals.totalBeforeTax;
-  aoa.push(["Amount In Words:", `${amountInWords} Only`, "", "", "SUBTOTAL", subtotal]);
+  aoa.push(["Amount In Words:", amountInWords, "", "", "SUBTOTAL", subtotal]);
 
   if (taxMode === "INTRA_STATE") {
     aoa.push(["", "", "", "", `CGST @ ${invoice.cgstRate}%`, totals.cgst]);
