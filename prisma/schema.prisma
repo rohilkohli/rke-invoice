@@ -22,7 +22,7 @@ enum SignatureType {
 
 model Invoice {
   id              Int           @id @default(autoincrement())
-  invoiceNo       String        @unique
+  invoiceNo       String
   invoiceDate     DateTime
   poNo            String?
   referenceNo      String?
@@ -60,8 +60,10 @@ model Invoice {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  // Legacy: PDFs are made on demand now and this copy is no longer written or read.
+  // The Prisma client leaves pdfData out of every query (see lib/db.ts).
   pdfName         String?
-  pdfData         String?       // Base64 encoded generated PDF file
+  pdfData         String?
 
   userId          Int?
   user            User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -69,9 +71,31 @@ model Invoice {
   clientId        Int
   client          Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
+  // Bill-to and ship-to exactly as they were when this invoice was last saved, so changing
+  // or re-using a client never alters an invoice that was already issued. Invoices saved
+  // before these columns existed have them empty and fall back to the linked client.
+  clientName      String?
+  clientAddress   String?
+  clientGstin     String?
+  clientState     String?
+  clientStateCode String?
+  shipToName      String?
+  shipToAddress   String?
+  shipToGstin     String?
+  shipToState     String?
+  shipToStateCode String?
+
+  // What was last sent to Google Drive, so renamed or deleted invoices can be cleaned up there.
+  driveSyncedNo   String?
+  driveSyncedYear String?
+  driveSyncedFile String?
+  driveSyncedAt   DateTime?
+  driveSyncError  String?
+
   lineItems       LineItem[]
   signature       Signature?
 
+  @@unique([userId, invoiceNo])
   @@index([invoiceDate])
   @@index([clientId])
 }
@@ -161,6 +185,8 @@ model CompanySettings {
   termsAndConditions String?
 
   gdriveWebhookUrl   String?
+  // Shared secret the Apps Script checks on every request. Never sent to the browser.
+  gdriveWebhookSecret String?
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

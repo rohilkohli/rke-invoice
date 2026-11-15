@@ -1,6 +1,10 @@
+import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
+import { normalizeStateCode, resolveStateCode } from "@/lib/states";
+
 export type TaxMode = "INTRA_STATE" | "INTER_STATE";
 
 type TypedAmount = number | string | null | undefined;
+type StateLike = { stateCode?: string | null; state?: string | null } | null | undefined;
 
 /**
  * A line reaches the totals only through the amount the user typed.
@@ -10,27 +14,70 @@ export type LineItemInput = {
   amount: TypedAmount;
 };
 
+// ---------------------------------------------------------------------------
+// Exact money. Amounts are worked out in whole paise (integers) and a half-paisa is
+// always rounded up, the way it is on paper. Binary floating point cannot do that:
+// 26.50 x 9% is exactly 2.385, but in floating point it lands just under and rounds to 2.38.
+// ---------------------------------------------------------------------------
+
+const MAX_RUPEE_DIGITS = 13;
+
+/** Plain decimal text for a finite number, never scientific notation. */
+function numberToDecimalText(n: number): string {
+  const text = String(n);
+  if (!/e/i.test(text)) return text;
+  return n.toFixed(12).replace(/\.?0+$/, "");
+}
+
+/** "1500.505" -> 150051 paise (half-up), or NaN when it is not plain decimal text. */
+function decimalTextToPaise(text: string): number {
+  const match = /^(\d*)(?:\.(\d*))?$/.exec(text);
+  if (!match || (match[1] === "" && (match[2] ?? "") === "")) return Number.NaN;
+  const whole = match[1] || "0";
+  if (whole.replace(/^0+/, "").length > MAX_RUPEE_DIGITS) return Number.NaN;
+  const fraction = match[2] ?? "";
+  const paise = Number(whole) * 100 + Number((fraction + "00").slice(0, 2));
+  // Round half up: look at the third decimal digit only.
+  return fraction.length > 2 && fraction.charCodeAt(2) >= 53 ? paise + 1 : paise;
+}
+
+/** Rounds to two decimals, half away from zero, using the number's shortest decimal form. */
 export function roundMoney(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+  if (!Number.isFinite(value)) return 0;
+  const paise = decimalTextToPaise(numberToDecimalText(Math.abs(value)));
+  if (Number.isNaN(paise)) return Math.round(value * 100) / 100;
+  return (value < 0 ? -paise : paise) / 100;
 }
 
 /**
- * Reads an amount the way people type it: "150000", "1,50,000.50", "₹ 2,500".
+ * Reads an amount the way people type it, into whole paise: "150000", "1,50,000.50", "₹ 2,500".
  * Returns NaN for a blank box or anything that is not a plain non-negative number,
  * so callers can tell "nothing usable typed" apart from a real 0.
  */
-export function parseAmount(value: TypedAmount): number {
+export function parseAmountPaise(value: TypedAmount): number {
   if (typeof value === "number") {
-    return Number.isFinite(value) && value >= 0 ? value : Number.NaN;
+    if (!Number.isFinite(value) || value < 0) return Number.NaN;
+    return decimalTextToPaise(numberToDecimalText(value));
   }
-  const cleaned = String(value ?? "").replace(/[₹,\s]/g, "");
-  return /^(\d+\.?\d*|\.\d+)$/.test(cleaned) ? Number(cleaned) : Number.NaN;
+  return decimalTextToPaise(String(value ?? "").replace(/[₹,\s]/g, ""));
+}
+
+/** Same as parseAmountPaise, in rupees. */
+export function parseAmount(value: TypedAmount): number {
+  const paise = parseAmountPaise(value);
+  return Number.isNaN(paise) ? Number.NaN : paise / 100;
 }
 
 /** What a line adds to the invoice: the typed amount rounded to paise, or 0 if it is not a number. */
 export function lineAmount(value: TypedAmount): number {
-  const amount = parseAmount(value);
-  return Number.isNaN(amount) ? 0 : roundMoney(amount);
+  const paise = parseAmountPaise(value);
+  return Number.isNaN(paise) ? 0 : paise / 100;
+}
+
+/** Tax on an amount in paise at a rate in percent (up to two decimals), in paise, half-up. */
+export function taxOnPaise(basePaise: number, ratePercent: number): number {
+  const basisPoints = Math.max(0, Math.round((Number(ratePercent) || 0) * 100));
+  return Number((BigInt(basePaise) * BigInt(basisPoints) + BigInt(5000)) / BigInt(10000));
 }
 
 /**
@@ -51,13 +98,25 @@ export function legacyDecimalText(
   return fraction ? `${whole}.${fraction.padEnd(2, "0")}` : whole;
 }
 
+/** Same state means CGST + SGST; a different or unknown state means IGST. "9" and "09" are the same. */
 export function getTaxMode(
-  companyStateCode: string,
-  clientStateCode: string,
+  companyStateCode: string | null | undefined,
+  clientStateCode: string | null | undefined,
 ): TaxMode {
-  const a = (companyStateCode ?? "").trim();
-  const b = (clientStateCode ?? "").trim();
+  const a = normalizeStateCode(companyStateCode);
+  const b = normalizeStateCode(clientStateCode);
   return a && b && a === b ? "INTRA_STATE" : "INTER_STATE";
+}
+
+/**
+ * The one place that decides CGST + SGST versus IGST, for the form, preview, PDF, spreadsheet
+ * and the server alike. The company side comes from Settings (falling back to the default
+ * state only when Settings has none); either side may give a code or just a state name.
+ */
+export function resolveTaxMode(company: StateLike, client: StateLike): TaxMode {
+  const companyCode =
+    resolveStateCode(company?.stateCode, company?.state) || DEFAULT_COMPANY_STATE.stateCode;
+  return getTaxMode(companyCode, resolveStateCode(client?.stateCode, client?.state));
 }
 
 export function calculateTotals(params: {
@@ -73,23 +132,49 @@ export function calculateTotals(params: {
   igst: number;
   grandTotal: number;
 } {
-  const totalBeforeTax = roundMoney(
-    (params.items ?? []).reduce((sum, item) => sum + lineAmount(item.amount), 0),
-  );
+  let basePaise = 0;
+  for (const item of params.items ?? []) {
+    const paise = parseAmountPaise(item.amount);
+    if (!Number.isNaN(paise)) basePaise += paise;
+  }
 
   let cgst = 0;
   let sgst = 0;
   let igst = 0;
-
   if (params.taxMode === "INTRA_STATE") {
-    cgst = roundMoney((totalBeforeTax * (Number(params.cgstRate) || 0)) / 100);
-    sgst = roundMoney((totalBeforeTax * (Number(params.sgstRate) || 0)) / 100);
+    cgst = taxOnPaise(basePaise, params.cgstRate);
+    sgst = taxOnPaise(basePaise, params.sgstRate);
   } else {
-    igst = roundMoney((totalBeforeTax * (Number(params.igstRate) || 0)) / 100);
+    igst = taxOnPaise(basePaise, params.igstRate);
   }
 
-  const grandTotal = roundMoney(totalBeforeTax + cgst + sgst + igst);
-  return { totalBeforeTax, cgst, sgst, igst, grandTotal };
+  return {
+    totalBeforeTax: basePaise / 100,
+    cgst: cgst / 100,
+    sgst: sgst / 100,
+    igst: igst / 100,
+    grandTotal: (basePaise + cgst + sgst + igst) / 100,
+  };
+}
+
+/** Everything an invoice shows about money, from its lines, rates, and the two states involved. */
+export function calculateInvoiceTotals(params: {
+  lineItems: LineItemInput[];
+  cgstRate: number;
+  sgstRate: number;
+  igstRate: number;
+  company: StateLike;
+  client: StateLike;
+}) {
+  const taxMode = resolveTaxMode(params.company, params.client);
+  const totals = calculateTotals({
+    items: params.lineItems,
+    cgstRate: params.cgstRate,
+    sgstRate: params.sgstRate,
+    igstRate: params.igstRate,
+    taxMode,
+  });
+  return { taxMode, ...totals, amountInWords: amountInWordsINR(totals.grandTotal) };
 }
 
 const ONES: string[] = [
@@ -169,8 +254,9 @@ export function amountInWordsINR(amount: number): string {
   const safe = Number.isFinite(amount) ? amount : 0;
   const rounded = roundMoney(safe);
 
-  const rupees = Math.floor(Math.abs(rounded));
-  const paise = Math.round((Math.abs(rounded) - rupees) * 100);
+  const totalPaise = Math.round(Math.abs(rounded) * 100);
+  const rupees = Math.floor(totalPaise / 100);
+  const paise = totalPaise % 100;
 
   const rupeesWords = indianNumberToWords(rupees);
   const paiseWords = paise ? indianNumberToWords(paise) : "";
