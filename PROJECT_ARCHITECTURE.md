@@ -6,220 +6,173 @@ Welcome to the **RKE GST Invoice Generator** codebase, a premium, cloud-hosted a
 
 ## 🛠️ Technology Stack & Architecture
 
-The application is built on a modern, robust, and highly-performant stack:
-
-- **Core Framework**: [Next.js 16](https://nextjs.org) (App Router, Server Actions, Dynamic Streaming) and [React 19](https://react.dev).
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) with Vanilla CSS custom tokens, providing modern transitions and responsive design.
+- **Core Framework**: [Next.js 16](https://nextjs.org) (App Router, Server Actions) and [React 19](https://react.dev).
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) with custom tokens, and shadcn/ui primitives on `@base-ui/react`.
 - **Database ORM**: [Prisma ORM v6](https://www.prisma.io/) with [PostgreSQL](https://www.postgresql.org/) hosted on **Vercel Postgres**.
-- **State Management**: [Zustand](https://github.com/pmndrs/zustand) for fast, reactive client-side store management inside the invoice builder.
-- **Form & Payload Validation**: [Zod](https://zod.dev) schemas enforcing rigorous validation for data safety across API and DB boundaries.
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand) for the client-side invoice builder store.
+- **Validation**: [Zod](https://zod.dev) schemas for every server action payload.
+- **Hosting**: **Vercel**. (`Dockerfile` and `cloudbuild.yaml` are from an earlier Cloud Run setup and are not used.)
 - **Integrations**:
-  - `@react-pdf/renderer` for elegant, dynamic, print-ready PDF invoice generation.
-  - `react-signature-canvas` for an interactive, responsive HTML5 signature pad.
-  - `qrcode.react` & custom UPI deep-links for generating scannable QR codes for seamless client payments.
-  - `xlsx` & `jszip` for exporting and batch-processing invoice sheets.
+  - `@react-pdf/renderer` — the one invoice PDF template, rendered in the browser (live preview, "Original / Duplicate / Triplicate" downloads) and on the server (dashboard downloads, ZIP, Google Drive).
+  - `qrcode` — the "Scan for Details" QR printed on every invoice PDF.
+  - `react-signature-canvas` — the drawn-signature pad.
+  - `xlsx` & `jszip` — spreadsheet and ZIP exports.
+  - Gemini (with OpenAI / Mistral fallbacks) — invoice scanning, called from the server only.
+  - A user-deployed **Google Apps Script** — files PDFs, a ledger sheet and database backups in the owner's Google Drive.
 
 ---
 
 ## 📂 Project Directory Structure
 
-Here is a comprehensive map of the project's folder layout:
-
 ```text
 rke-invoice/
-├── app/                        # Next.js App Router (Pages, Layouts, Server Actions)
-│   ├── actions/                # Next.js Server Actions (Database Mutations)
-│   │   ├── invoices.ts         # Actions for creating, updating, and deleting invoices
-│   │   └── settings.ts         # Actions for updating company settings
-│   ├── dashboard/              # Invoices list, summary cards, and analytics
-│   │   └── page.tsx
-│   ├── invoices/               # Invoice editor and creator routes
-│   │   ├── [id]/               # Single invoice detail view & edit wrapper
-│   │   │   └── page.tsx
-│   │   └── new/                # New invoice creation page
-│   │       └── page.tsx
-│   ├── settings/               # System and Company Configuration page
-│   │   └── page.tsx
-│   ├── globals.css             # Tailwind CSS imports & custom variables
-│   ├── layout.tsx              # Root HTML wrapper with theme providers and Toasters
-│   └── page.tsx                # Redirects directly to /dashboard
-├── components/                 # Component Library (Separated by domain)
-│   ├── dashboard/              # Dashboard-specific interactive tables and summaries
-│   ├── export/                 # Spreadsheet export actions (XLSX)
-│   ├── invoice/                # Invoice builder form, live preview, and stores
-│   │   ├── InvoiceEditor.tsx   # Wrapper coordinating Form & Live Preview side-by-side
-│   │   ├── InvoiceForm.tsx     # Rich, dense form for invoice meta, client details & line items
-│   │   ├── InvoicePreview.tsx  # High-fidelity live view replicating print-style GST tax invoices
-│   │   ├── types.ts            # Type definitions for the client-side state
-│   │   └── useInvoiceStore.ts  # Zustand store for real-time form updates & sync
-│   ├── layout/                 # Shell, navigation, sidebar, and theme toggle buttons
-│   ├── pdf/                    # Server-side & client-side printable PDF templates
-│   ├── qr/                     # Dynamic UPI QR code generator component
-│   ├── settings/               # Company settings and defaults modification form
-│   ├── signature/              # Interactive drawn signature pad dialog
-│   └── ui/                     # Premium prebuilt shadcn-inspired interface primitives
-├── lib/                        # Shared utilities and helper modules
-│   ├── bootstrap.ts            # Database bootstrapping (default company settings and default client)
-│   ├── calculations.ts         # GST Tax computation rules and Indian Number-to-Words converter
-│   ├── db.ts                   # Cached global PrismaClient instantiation
-│   ├── defaults.ts             # Default parameters (e.g. M/S Radha Kishan Enterprises metadata)
-│   ├── export.ts               # Excel/ZIP sheet creators
-│   ├── qr.ts                   # UPI QR code helpers
-│   └── utils.ts                # Dynamic tailwind-merge helper (cn)
-├── prisma/                     # Database schemas and migrations
-│   └── schema.prisma           # Prisma Database schemas and relationships (PostgreSQL)
-├── public/                     # Static assets (logos, fallback signatures, icons)
-├── package.json                # Project dependencies and script runner configurations
-└── tsconfig.json               # TypeScript path mapping and type configurations
+├── app/                          # Next.js App Router
+│   ├── actions/                  # Server Actions — all mutations live here
+│   │   ├── account.ts            # Change password
+│   │   ├── auth.ts               # Sign in / sign out / invite-only sign up
+│   │   ├── gdrive.ts             # Save/test the Drive address, sync one or all, get the script
+│   │   ├── invoices.ts           # Create, update, delete invoices
+│   │   ├── ledger.ts             # Client statements and payments
+│   │   ├── ocr.ts                # AI invoice scan
+│   │   └── settings.ts           # Company settings
+│   ├── api/
+│   │   ├── export/invoices/      # XLSX/ZIP data for the dashboard (login required)
+│   │   └── invoices/[id]/download/  # The server-made PDF of one invoice (login required)
+│   ├── dashboard/                # Invoice list and the month's total
+│   ├── invoices/{new,[id]}/      # Invoice editor
+│   ├── ledger/                   # Client ledger and payments
+│   ├── login/, signup/           # Sign-in; sign-up (closed unless an invite code is set)
+│   └── settings/                 # Company, bank, tax defaults, Drive sync, change password
+├── components/                   # Domain components
+│   ├── dashboard/                # Invoice table, selection, ZIP/XLSX actions
+│   ├── invoice/                  # Editor, form, line-item table, saved-client picker, live preview, store
+│   ├── ledger/, layout/, signature/, settings/, export/
+│   ├── pdf/                      # InvoicePDF.tsx (the template), fonts.ts, PdfActions.tsx
+│   └── ui/                       # Shared primitives (incl. decimal-input)
+├── lib/
+│   ├── calculations.ts           # GST, whole-paise money, amounts in words (the only place figures are computed)
+│   ├── clientIdentity.ts         # Pure: what makes a client "the same", and the per-invoice client copy
+│   ├── clients.ts                # (server) find or create the client record; list billed clients
+│   ├── serialize.ts              # (server) saved invoice → form data / company preview (the one mapper)
+│   ├── generatePdfServer.ts      # (server) invoice → PDF buffer
+│   ├── pdfFonts.ts               # (server) where the PDF font is read from
+│   ├── qr.ts                     # QR text and PNG
+│   ├── export.ts                 # XLSX sheet builders, safe sheet names
+│   ├── gdrive.ts, gdriveCore.ts, gdriveScript.ts   # Drive sync, its pure rules, and the Apps Script text
+│   ├── ocr.ts                    # AI scan readers, limits and result validation
+│   ├── auth.ts, session.ts, crypto.ts, authorization.ts   # Sessions and password hashing
+│   ├── states.ts                 # Indian states and state-code normalisation
+│   ├── invoiceStatus.ts          # Which statuses count as billed
+│   ├── bootstrap.ts, defaults.ts, db.ts, utils.ts, resolveLogoUrl.ts
+├── prisma/
+│   ├── schema.prisma             # PostgreSQL schema
+│   └── seed.ts                   # Creates the first login from SEED_* environment variables
+├── public/fonts/                 # Arimo-Regular.ttf, Arimo-Italic.ttf (PDF font, also served to the browser)
+├── tests/                        # node:test suites, run with `npm test`
+└── next.config.ts                # Standalone output, server-action body limit, font file tracing
 ```
 
 ---
 
 ## 🗄️ Database Schema & Models
 
-The PostgreSQL database schema is configured in [schema.prisma](prisma/schema.prisma) with five highly integrated tables:
+The schema is in [schema.prisma](prisma/schema.prisma). Every record belongs to a `User` (the account) and is only ever read or changed through that account.
 
 ```mermaid
 erDiagram
-    CompanySettings {
-        Int id PK
-        String companyName
-        String gstin
-        String address
-        String email
-        String phone
-        String bankName
-        String branch
-        String accountNo
-        String ifsc
-        String upiId
-        String logoUrl
-        String signatureUrl
-        String invoicePrefix
-        Decimal defaultCgstRate
-        Decimal defaultSgstRate
-        Decimal defaultIgstRate
-        String termsAndConditions
-    }
-
-    Client {
-        Int id PK
-        String name
-        String address
-        String gstin
-        String state
-        String stateCode
-        String shipToName
-        String shipToAddress
-    }
+    User ||--o{ Invoice : owns
+    User ||--o{ Client : owns
+    User ||--o| CompanySettings : has
+    Client ||--o{ Invoice : "identifies"
+    Client ||--o{ Payment : "pays"
+    Invoice ||--|{ LineItem : contains
+    Invoice ||--o| Signature : "signed_by"
 
     Invoice {
         Int id PK
-        String invoiceNo UK
+        String invoiceNo "unique per account"
         DateTime invoiceDate
-        String poNo
-        DateTime billPeriodStart
-        DateTime billPeriodEnd
-        String state
-        String stateCode
-        String transportMode
-        String vehicleNo
-        String placeOfSupply
-        InvoiceStatus status
-        Boolean reverseCharge
-        Decimal cgstRate
-        Decimal sgstRate
-        Decimal igstRate
-        Decimal totalBeforeTax
-        Decimal cgst
-        Decimal sgst
-        Decimal igst
+        InvoiceStatus status "DRAFT SENT PAID QUOTATION"
+        Decimal cgst_sgst_igst
         Decimal grandTotal
-        String amountInWords
+        String clientName_Address_Gstin_State "this invoice's own copy"
+        String shipTo_Name_Address_Gstin_State "this invoice's own copy"
+        String driveSynced_No_Year_File_At "what Drive holds"
+        String driveSyncError
         Int clientId FK
     }
-
     LineItem {
-        Int id PK
-        Int invoiceId FK
         Int sno
         String description
-        String hsnSac
-        String unit
-        String qty
-        String rate
-        Decimal amount
+        String unit "free text"
+        String qty "free text"
+        String rate "free text"
+        Decimal amount "typed by the user"
     }
-
-    Signature {
+    Client {
         Int id PK
-        Int invoiceId FK
-        String dataUrl
-        SignatureType type
+        String name
+        String gstin
     }
-
-    Client ||--o{ Invoice : "receives"
-    Invoice ||--|{ LineItem : "contains"
-    Invoice ||--o| Signature : "signed_by"
+    CompanySettings {
+        String gstin
+        String stateCode
+        Decimal defaultTaxRates
+        String gdriveWebhookUrl
+        String gdriveWebhookSecret "never sent to the browser"
+    }
 ```
 
-### Key Schema Characteristics:
-1. **`Invoice`**: Tracks GST details (rates/amounts for CGST, SGST, IGST), reverse charge applicability, transportation/vehicle metadata, PO details, and billing periods.
-2. **`Client`**: Implements separation between *Billed-To* (corporate entity address) and *Shipped-To* (physical plant/site address, crucial for logistics operations).
-3. **`LineItem`**: Leverages a composite unique index `@@unique([invoiceId, sno])` ensuring serial number ordering remains consistent and non-conflicting within an invoice. `unit`, `qty` and `rate` are free text printed exactly as typed; `amount` is typed by the user and is the only line figure used in totals.
-4. **`CompanySettings`**: Houses all primary metadata for Radha Kishan Enterprises, including default GST rates, banking/UPI details, corporate address, and terms.
-5. **`Signature`**: One-to-one relationship with `Invoice`, capturing drawn, uploaded, or typed signature assets.
+### Key Schema Characteristics
+1. **`Invoice`** carries its own copy of the bill-to and ship-to details, written on every save, so an invoice already issued never changes when a client is picked, edited or reused. Invoices saved before this existed have the copy empty and fall back to the linked `Client` (`billToOf`). `@@unique([userId, invoiceNo])` makes numbers unique per account.
+2. **`Client`** only identifies who has been billed (matched by name + GSTIN). Nothing saved on an invoice edits a client row. The invoice screen's "Saved client" list shows clients that have an invoice or payment.
+3. **`LineItem`** `unit`, `qty` and `rate` are free text printed exactly as typed; `amount` is typed by the user and is the only figure used in totals. `@@unique([invoiceId, sno])` keeps line order consistent.
+4. **`CompanySettings`** holds the supplier's details, default GST rates, bank/UPI details, terms and the Google Drive address and private key.
+5. **`Invoice.pdfData` / `pdfName`** are legacy columns: PDFs are now made on demand, and the Prisma client omits `pdfData` from every query (`lib/db.ts`).
 
 ---
 
-## 🧮 Core Business Logic & Algorithms
+## 🧮 Core Business Logic
 
-### 0. Line Amounts Are Typed, Not Calculated (`lib/calculations.ts`)
-Unit, Qty and Rate are descriptive free text (for example `26 Days`, `5,000 per day`) and take part in no formula. The user types each line's Amount; `parseAmount()` reads it (commas and a ₹ sign are accepted) and `calculateTotals()` adds up those amounts and applies GST. Meter Start / Meter End are stored and printed as notes and do not change Qty.
+### 1. Line Amounts Are Typed, Not Calculated (`lib/calculations.ts`)
+Unit, Qty and Rate are descriptive text (for example `26 Days`, `5,000 per day`) and take part in no formula. The user types each line's Amount; `parseAmount()` reads it (commas and a ₹ sign are accepted) and the totals add those amounts up and apply GST. Meter Start / Meter End are printed as notes and do not change Qty.
 
-### 1. GST Tax Mode Selection (`lib/calculations.ts`)
-The application automatically determines tax structures using the **State Codes** of the supplier (RKE) and client:
-- **Intra-State (CGST + SGST)**: Applied if both state codes match (e.g., Uttar Pradesh to Uttar Pradesh, code `09`). Tax is divided equally (e.g. 9% CGST + 9% SGST).
-- **Inter-State (IGST)**: Applied if the client state code is different (e.g., Uttar Pradesh to Maharashtra, code `27`). An aggregate rate (e.g. 18% IGST) is applied directly.
+### 2. GST and Money (`lib/calculations.ts`)
+- Money is held in whole **paise**: amounts are read as integers, tax is computed with BigInt and rounded half-up on the decimal text (so `26.50 × 9%` is `2.39`, not `2.38`).
+- `resolveTaxMode(company, client)` is the single decision: **intra-state** (CGST + SGST) when the supplier's and the client's state codes match, otherwise **inter-state** (IGST). State codes are normalised first, so `9` and `09` are the same state. The editor, the PDF, the spreadsheets and the server all call it.
+- The amount in words uses the Indian system (Lakhs and Crores): `1,25,500.50` → *Rupees One Lakh Twenty Five Thousand Five Hundred and Paise Fifty Only*.
 
-### 2. Manual Invoice Numbers (`app/actions/invoices.ts`)
-Invoice numbers are never generated or pre-filled. The field starts blank on a new invoice, the user types the number, and it appears in the live PDF preview as it is typed. On save the server rejects a blank number and reports a number that is already used by another invoice, without writing anything.
+### 3. Manual Invoice Numbers (`app/actions/invoices.ts`)
+Invoice numbers are never generated or pre-filled. The field starts blank, the number shows in the live PDF as it is typed, and on save the server rejects a blank number or one the account already uses, before anything is written. A second account may use the same number.
 
-### 3. Indian Number-to-Words Converter (`lib/calculations.ts`)
-To meet strict statutory requirements, the converter formats numbers according to the **Indian Numbering System** (Lakhs and Crores rather than Millions/Billions):
-- **Example**: `1,25,500.50` yields:
-  > *"Rupees One Lakh Twenty Five Thousand Five Hundred and Paise Fifty Only"*
+### 4. One PDF Pipeline
+`components/pdf/InvoicePDF.tsx` is the only template. A saved invoice is turned into its data by `toInvoiceFormData` (`lib/serialize.ts`); the browser preview uses the editor's state, and everything else (dashboard download, ZIP, Google Drive) calls `generateInvoicePdfBuffer` (`lib/generatePdfServer.ts`). The QR text comes from `buildInvoiceQrText` (`lib/qr.ts`).
+**Fonts** are Arimo, registered by `components/pdf/fonts.ts` (browser, from `/fonts/…`) and `lib/pdfFonts.ts` (server, from `public/fonts`, falling back to the published copies). Each font file is registered once; registering the same file again for bold makes react-pdf keep two copies under one name and later PDFs can lose the first character of bold text (`tests/pdf-fonts.test.ts`).
 
-### 4. Dynamic UPI Payments (`lib/calculations.ts` & `components/qr/`)
-A custom UPI deep-link URI is constructed dynamically:
-`upi://pay?pa={UPI_ID}&pn={COMPANY_NAME}&am={GRAND_TOTAL}&cu=INR&tn=Invoice%20{INVOICE_NO}`
-This URI is rendered as a clean, responsive QR code in the invoice preview, enabling clients to scan and instantly settle outstanding amounts.
+### 5. Google Drive Sync (`lib/gdrive.ts`)
+After a save, `after()` runs the sync once the reply has gone out: a fresh PDF is uploaded, the ledger sheet row is written, and anything an earlier sync left under another number or name is removed. Every request carries the account's private key and goes only to an address that starts with `https://script.google.com/macros/`. Each step's result is checked; the outcome (file, number, year, time, or the error) is stored on the invoice and shown in the editor. Deleting an invoice removes its recorded file and row and refreshes the backup. **Sync All** works through invoices that were never synced, failed, or were edited since, a few at a time within the host's time limit.
+
+### 6. Access and Sign-in
+Login cookies are signed with `SESSION_SECRET` (7-day sessions). Passwords are stored as salted PBKDF2 hashes (`lib/crypto.ts`); a password is changed in Settings (10+ characters, as for sign-up and the seed script). Sign-up is closed unless `SIGNUP_INVITE_CODE` is set. The first login is created with `npx prisma db seed` from `SEED_*` variables — no credentials are kept in the repository.
+
+### 7. AI Scan (`lib/ocr.ts`, `app/actions/ocr.ts`)
+The browser shrinks a picture (PDFs must be under 3 MB), the server action checks the type and size, and the reader's answer is validated field by field before it fills the form. Only Gemini reads PDFs; OpenAI and Mistral are picture-only fallbacks. Models are set by `GEMINI_MODEL`, `OPENAI_MODEL`, `MISTRAL_MODEL`, and the user always reviews the result before saving.
 
 ---
 
 ## 🎨 User Interface & Page Flows
 
-1. **Dashboard (`/dashboard`)**:
-   - **Metrics Panel**: Displays dynamic metrics for *Total Invoiced*, *Total Paid*, and *Pending Balance* specifically filtered for the current month.
-   - **Recent Invoices Table**: Fully searchable and filterable table displaying clients, dates, statuses (`DRAFT`, `SENT`, `PAID`), and actions.
-
-2. **Invoice Editor (`/invoices/new` and `/invoices/[id]`)**:
-   - Implements a modern **Side-by-Side Split View** on large screens:
-     - **Left Pane (Form)**: High-density inputs split into logical groups (Invoice Details, Consignee Info, Line Items, Signature Panel). Uses a robust Zustand store (`useInvoiceStore.ts`) to immediately capture every keystroke.
-     - **Right Pane (Live Preview)**: Replicates the absolute look-and-feel of a physical, print-perfect tax invoice page in real-time, responding instantly to form adjustments.
-   - **Actions Drawer**: Provides secondary controls for generating print/PDF views, exporting spreadsheet schedules (XLSX), downloading zip packets, and status triggers.
-
-3. **Settings (`/settings`)**:
-   - Enables users to override corporate profile parameters (bank details, GSTIN, default tax rates, and legal terms) which immediately update subsequent invoice defaults.
+1. **Dashboard (`/dashboard`)**: a *Total Invoiced* card for the current month (quotations excluded) and a searchable table of every invoice with row actions (PDF, XLSX, delete) and bulk ZIP / XLSX export.
+2. **Invoice Editor (`/invoices/new`, `/invoices/[id]`)**: a form (Core Details, Billed & Shipped Consignee with the saved-client picker, Logistics, Line Items) beside a live PDF preview on large screens; a four-step wizard on phones. The editor shows when the invoice was last synced to Drive, or why the last sync failed.
+3. **Ledger (`/ledger`)**: debits (invoices, quotations excluded), credits (payments) and the running balance, per client or for all.
+4. **Settings (`/settings`)**: company and bank details, default tax rates, Google Drive sync (address, script to copy, Sync All), and Change password.
 
 ---
 
-## 💡 Developer Guidelines & Development Workflows
+## 💡 Developer Guidelines & Workflows
 
-- **Local Running**:
-  - Standard server launch: `npm run dev` (starts development environment on [http://localhost:3000](http://localhost:3000)).
-- **Database**:
-  - PostgreSQL is hosted on Vercel Postgres. The `DATABASE_URL` is injected via environment variables — never hardcode it.
-  - Use Prisma to sync schema adjustments: `npx prisma db push` or `npx prisma migrate dev`.
-- **Aesthetics & Styling**:
-  - Always prefer the established theme configuration. Dark and Light modes should maintain premium readability with high contrast ratios, using harmonized HSL color palettes and smooth dynamic micro-animations.
+- **Local running**: `npm run dev` ([http://localhost:3000](http://localhost:3000)). Copy `.env.example` to `.env` first; create a login with `npx prisma db seed` (see the README).
+- **Database**: PostgreSQL. `DATABASE_URL` is injected through the environment — never hardcode it. Apply schema changes with `npx prisma db push` using the direct connection string, **before** deploying; the build does not touch the database. The README's "Changing the database tables" has the full steps.
+- **Checks**: `npm test`, `npm run lint`, `npm run build` (CI runs the same).
+- **Where logic goes**: put anything worth testing in a plain module (no `server-only` import) and keep database and framework glue in the server modules.
+- **Aesthetics & Styling**: always prefer the established theme configuration. Dark and Light modes should keep high contrast with harmonised colours and smooth micro-animations.
