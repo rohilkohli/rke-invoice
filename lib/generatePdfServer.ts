@@ -6,8 +6,11 @@ import React from "react";
 
 import { InvoicePDF } from "@/components/pdf/InvoicePDF";
 import { calculateInvoiceTotals } from "@/lib/calculations";
+import { registerServerPdfFonts } from "@/lib/pdfFonts";
 import { buildInvoiceQrText, generateQrPngDataUrl } from "@/lib/qr";
 import { toCompanyPreview, toInvoiceFormData, type StoredInvoice } from "@/lib/serialize";
+
+registerServerPdfFonts();
 
 /**
  * The invoice PDF, made from the saved invoice. Every download from the dashboard and every

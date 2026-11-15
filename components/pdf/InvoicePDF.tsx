@@ -1,6 +1,5 @@
 import {
   Document,
-  Font,
   Image as PdfImage,
   Page,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
 } from "@react-pdf/renderer";
 
 import type { InvoiceFormData } from "@/components/invoice/types";
+import { registerBrowserPdfFonts } from "@/components/pdf/fonts";
 import type { CompanySettingsPreview } from "@/components/invoice/InvoicePreview";
 import {
   amountInWordsINR,
@@ -22,32 +22,9 @@ import { DEFAULT_COMPANY_STATE } from "@/lib/defaults";
 
 export type InvoiceCopy = "ORIGINAL" | "DUPLICATE" | "TRIPLICATE";
 
-// Register font with full Unicode support including Rupee symbol (₹) and all font styles
-Font.register({
-  family: "Arimo",
-  fonts: [
-    {
-      src: "https://raw.githubusercontent.com/google/fonts/main/ofl/arimo/Arimo%5Bwght%5D.ttf",
-      fontWeight: "normal",
-      fontStyle: "normal",
-    },
-    {
-      src: "https://raw.githubusercontent.com/google/fonts/main/ofl/arimo/Arimo%5Bwght%5D.ttf",
-      fontWeight: "bold",
-      fontStyle: "normal",
-    },
-    {
-      src: "https://raw.githubusercontent.com/google/fonts/main/ofl/arimo/Arimo-Italic%5Bwght%5D.ttf",
-      fontWeight: "normal",
-      fontStyle: "italic",
-    },
-    {
-      src: "https://raw.githubusercontent.com/google/fonts/main/ofl/arimo/Arimo-Italic%5Bwght%5D.ttf",
-      fontWeight: "bold",
-      fontStyle: "italic",
-    },
-  ],
-});
+// The font (with the rupee sign) is registered here in the browser. On the server it is registered
+// from the files on disk by lib/generatePdfServer.ts. See components/pdf/fonts.ts.
+if (typeof window !== "undefined") registerBrowserPdfFonts();
 
 const styles = StyleSheet.create({
   page: {
