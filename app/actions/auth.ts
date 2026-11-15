@@ -10,7 +10,8 @@ import { clearSession, setSessionForUser } from "@/lib/auth";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  // The same minimum as changing a password and as the seed script.
+  password: z.string().min(10, "Password must be at least 10 characters"),
   name: z.string().optional(),
 });
 
