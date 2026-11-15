@@ -250,31 +250,20 @@ export function InvoiceForm(props: {
     }
   };
 
+  // The consignee fields are only filled in when there really is a different consignee. With the
+  // switch off they are empty and everything (preview, PDF, spreadsheet) uses the billed client,
+  // so nothing can be overwritten or go stale when the billed client's details change.
   const handleShippingToggle = (checked: boolean) => {
     setDifferentShipping(checked);
-    if (!checked) {
-      setClientField("shipToName", invoice.client.name);
-      setClientField("shipToAddress", invoice.client.address);
+    if (checked) {
+      if (!invoice.client.shipToName) setClientField("shipToName", invoice.client.name);
+      if (!invoice.client.shipToAddress) setClientField("shipToAddress", invoice.client.address);
+    } else {
+      for (const key of ["shipToName", "shipToAddress", "shipToGstin", "shipToState", "shipToStateCode"] as const) {
+        setClientField(key, "");
+      }
     }
   };
-
-  useEffect(() => {
-    if (!differentShipping) {
-      if (invoice.client.shipToName !== invoice.client.name) {
-        setClientField("shipToName", invoice.client.name);
-      }
-      if (invoice.client.shipToAddress !== invoice.client.address) {
-        setClientField("shipToAddress", invoice.client.address);
-      }
-    }
-  }, [
-    differentShipping,
-    invoice.client.name,
-    invoice.client.address,
-    invoice.client.shipToName,
-    invoice.client.shipToAddress,
-    setClientField,
-  ]);
 
   // Same rule, rounding and company state (from Settings) as the preview, PDF and spreadsheet.
   const { taxMode, amountInWords, ...totals } = calculateInvoiceTotals({

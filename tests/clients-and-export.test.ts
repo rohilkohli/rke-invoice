@@ -34,6 +34,23 @@ test("the copy of the client kept on an invoice is tidied, and an empty ship-to 
   assert.equal(snapshot.shipToState, null);
 });
 
+test("a ship-to that only repeats the bill-to is saved as no consignee; a different one is kept", () => {
+  const base = { name: "X Ltd", address: "Mumbai", gstin: "27AAACL0140PEZ6", state: "Maharashtra", stateCode: "27" };
+
+  const same = clientSnapshot({ ...base, shipToName: "X Ltd", shipToAddress: "Mumbai" });
+  assert.deepEqual(
+    [same.shipToName, same.shipToAddress, same.shipToGstin, same.shipToState, same.shipToStateCode],
+    [null, null, null, null, null],
+  );
+
+  const elsewhere = clientSnapshot({ ...base, shipToName: "RIL", shipToAddress: "Nagothane", shipToState: "Maharashtra" });
+  assert.deepEqual([elsewhere.shipToName, elsewhere.shipToAddress, elsewhere.shipToState], ["RIL", "Nagothane", "Maharashtra"]);
+
+  // only the address differs: the name is not repeated as a separate consignee name
+  const siteOnly = clientSnapshot({ ...base, shipToName: "X Ltd", shipToAddress: "Pune plant" });
+  assert.equal(siteOnly.shipToAddress, "Pune plant");
+});
+
 // ---------------------------------------------------------------------------
 // Spreadsheet export (H10)
 // ---------------------------------------------------------------------------

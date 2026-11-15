@@ -35,16 +35,34 @@ const orNull = (value: string | null | undefined) => clean(value) || null;
  * or billing someone else under the same record, never alters an invoice already issued.
  */
 export function clientSnapshot(client: ClientInput) {
+  const name = clean(client.name);
+  const address = clean(client.address);
+  const ship = {
+    name: clean(client.shipToName),
+    address: clean(client.shipToAddress),
+    gstin: clean(client.shipToGstin),
+    state: clean(client.shipToState),
+    stateCode: clean(client.shipToStateCode),
+  };
+  // A ship-to that only repeats the bill-to is not a different consignee. It is saved as nothing,
+  // so it can never go stale and the PDF simply uses the billed client.
+  const separate =
+    (!!ship.name && ship.name !== name) ||
+    (!!ship.address && ship.address !== address) ||
+    !!ship.gstin ||
+    !!ship.state ||
+    !!ship.stateCode;
+
   return {
-    clientName: clean(client.name),
-    clientAddress: clean(client.address),
+    clientName: name,
+    clientAddress: address,
     clientGstin: clean(client.gstin),
     clientState: clean(client.state),
     clientStateCode: clean(client.stateCode),
-    shipToName: orNull(client.shipToName),
-    shipToAddress: orNull(client.shipToAddress),
-    shipToGstin: orNull(client.shipToGstin),
-    shipToState: orNull(client.shipToState),
-    shipToStateCode: orNull(client.shipToStateCode),
+    shipToName: separate ? orNull(ship.name) : null,
+    shipToAddress: separate ? orNull(ship.address) : null,
+    shipToGstin: separate ? orNull(ship.gstin) : null,
+    shipToState: separate ? orNull(ship.state) : null,
+    shipToStateCode: separate ? orNull(ship.stateCode) : null,
   };
 }
