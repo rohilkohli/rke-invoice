@@ -63,7 +63,12 @@ export async function resolveClientId(
  */
 export async function getSavedClients(userId: number): Promise<SavedClient[]> {
   const rows = await prisma.client.findMany({
-    where: { userId, invoices: { some: {} } },
+    // A client with no GSTIN that has only unfinished drafts has nothing worth offering yet.
+    where: {
+      userId,
+      invoices: { some: {} },
+      OR: [{ gstin: { not: "" } }, { invoices: { some: { status: { not: "DRAFT" } } } }],
+    },
     orderBy: { name: "asc" },
     include: {
       invoices: {

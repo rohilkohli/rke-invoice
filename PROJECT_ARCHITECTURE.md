@@ -53,6 +53,7 @@ rke-invoice/
 │   ├── calculations.ts           # GST, whole-paise money, amounts in words (the only place figures are computed)
 │   ├── clientIdentity.ts         # Pure: what makes a client "the same", and the per-invoice client copy
 │   ├── clients.ts                # (server) find or create the client record; list billed clients
+│   ├── invoiceInput.ts           # What the server accepts on save (zod schema) and what a non-draft still needs
 │   ├── serialize.ts              # (server) saved invoice → form data / company preview (the one mapper)
 │   ├── generatePdfServer.ts      # (server) invoice → PDF buffer
 │   ├── pdfFonts.ts               # (server) where the PDF font is read from
@@ -144,6 +145,9 @@ Unit, Qty and Rate are descriptive text (for example `26 Days`, `5,000 per day`)
 
 ### 3. Manual Invoice Numbers (`app/actions/invoices.ts`)
 Invoice numbers are never generated or pre-filled. The field starts blank, the number shows in the live PDF as it is typed, and on save the server rejects a blank number or one the account already uses, before anything is written. A second account may use the same number.
+
+### 3a. Drafts
+A `DRAFT` can be saved unfinished: it needs only the invoice number, the date and the client's name. Every other status needs the client's GSTIN, address and state and at least one described line (`findMissingDetail` in `lib/invoiceInput.ts`; the form applies the same rules in `components/invoice/validation.ts`). An unfinished draft is stored like any other invoice, so it appears on the dashboard from any device after signing in, and it can be downloaded, exported and synced to Drive. Its amounts that were not typed come back blank, so they have to be typed before the invoice is marked Sent. Clients that exist only because of an unfinished draft (no GSTIN) are left out of the Saved client list.
 
 ### 4. One PDF Pipeline
 `components/pdf/InvoicePDF.tsx` is the only template. A saved invoice is turned into its data by `toInvoiceFormData` (`lib/serialize.ts`); the browser preview uses the editor's state, and everything else (dashboard download, ZIP, Google Drive) calls `generateInvoicePdfBuffer` (`lib/generatePdfServer.ts`). The QR text comes from `buildInvoiceQrText` (`lib/qr.ts`).

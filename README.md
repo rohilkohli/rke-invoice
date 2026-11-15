@@ -81,6 +81,7 @@ Scan any manual invoice image to automatically read line items, rates, taxes, an
 ### How invoices behave
 
 *   **Invoice numbers are typed by you.** The field starts blank, the number shows in the live PDF as you type it, and each account can use a number only once (another account may reuse it).
+*   **Drafts can be saved unfinished.** A draft needs only the invoice number, the date and the client's name, so you can save work in progress and finish it later from any device you sign in on. Any other status (Sent, Paid, Quotation) needs every detail, and the app says which one is missing.
 *   **Unit, Qty and Rate are free text** (for example `26 Days` or `5,000 per day`), saved and printed exactly as typed. Nothing is calculated from them.
 *   **You type each line's Amount.** It is the only line figure that feeds the totals; GST is worked out in whole paise from the sum.
 *   **Clients are remembered, invoices are not tied to them.** Each invoice keeps its own copy of the bill-to and ship-to details, so picking or changing a client never alters an invoice you have already issued. The "Saved client" box lists clients you have billed before and only fills the form in.

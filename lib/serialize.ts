@@ -105,7 +105,12 @@ export function toInvoiceFormData(invoice: StoredInvoice): InvoiceFormData {
         unit: li.unit,
         qty: legacyDecimalText(li.qty),
         rate: legacyDecimalText(li.rate, { money: true }),
-        amount: String(Number(li.amount)),
+        // In a draft a zero amount means "not typed yet" (a blank amount is saved as 0), so it comes
+        // back blank and has to be typed before the invoice can be marked Sent.
+        amount:
+          Number(li.amount) === 0 && (invoice.status === "DRAFT" || !li.description.trim())
+            ? ""
+            : String(Number(li.amount)),
         equipmentId: li.equipmentId,
         meterStart: li.meterStart != null ? Number(li.meterStart) : null,
         meterEnd: li.meterEnd != null ? Number(li.meterEnd) : null,

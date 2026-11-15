@@ -433,6 +433,11 @@ export function InvoiceForm(props: {
                     <SelectItem value="QUOTATION">Quotation</SelectItem>
                   </SelectContent>
                 </Select>
+                {invoice.status === "DRAFT" ? (
+                  <p className="text-xs text-muted-foreground">
+                    A draft can be saved with details missing. Other statuses need every detail.
+                  </p>
+                ) : null}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -1047,6 +1052,11 @@ export function InvoiceForm(props: {
                   <SelectItem value="QUOTATION">Quotation</SelectItem>
                 </SelectContent>
               </Select>
+              {invoice.status === "DRAFT" ? (
+                <p className="text-xs text-muted-foreground">
+                  A draft can be saved with details missing. Other statuses need every detail.
+                </p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label>E-Way Bill No.</Label>

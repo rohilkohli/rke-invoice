@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { InvoiceForm } from "./InvoiceForm";
 import { InvoicePreview, type CompanySettingsPreview } from "./InvoicePreview";
 import type { DriveStatus, InvoiceFormData, SavedClient } from "./types";
-import { findInvoiceProblem } from "./validation";
+import { findInvoiceProblem, isBlankLine } from "./validation";
 import { useInvoiceStore } from "./useInvoiceStore";
 
 const LOCAL_SIGNATURE_KEY = "rke_invoice_signature_v1";
@@ -103,10 +103,15 @@ export function InvoiceEditor(props: {
 
     startTransition(async () => {
       try {
+        // An unfinished draft does not keep empty rows, but always keeps at least one.
+        const nonBlank = invoice.lineItems.filter((li) => !isBlankLine(li));
+        const rows =
+          invoice.status === "DRAFT" && nonBlank.length ? nonBlank : invoice.lineItems;
+
         const payload: InvoiceActionInput = {
           ...invoice,
           invoiceNo: invoice.invoiceNo.trim(),
-          lineItems: invoice.lineItems.map((li, idx) => ({
+          lineItems: rows.map((li, idx) => ({
             ...li,
             sno: idx + 1,
             // Sent as typed; only the amount is a number.

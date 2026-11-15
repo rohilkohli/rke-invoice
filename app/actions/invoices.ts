@@ -12,87 +12,7 @@ import { calculateInvoiceTotals, roundMoney } from "@/lib/calculations";
 import { clientSnapshot } from "@/lib/clientIdentity";
 import { resolveClientId } from "@/lib/clients";
 import { deleteInvoiceFromGDrive, syncInvoiceInBackground } from "@/lib/gdrive";
-
-const optionalText = z.string().optional().nullable();
-const requiredText = (message: string) => z.string().trim().min(1, message);
-
-const lineItemSchema = z.object({
-  sno: z.number().int().min(1),
-  description: requiredText("Every line needs a description."),
-  hsnSac: optionalText,
-  // Free text, stored and printed exactly as typed. Never used in a calculation.
-  unit: z.string().max(60, "Unit is too long."),
-  qty: z.string().max(60, "Quantity is too long."),
-  rate: z.string().max(60, "Rate is too long."),
-  // Typed by the user; the only line figure that feeds the totals.
-  amount: z.number().nonnegative("A line amount cannot be negative."),
-  equipmentId: z.number().int().optional().nullable(),
-  meterStart: z.number().optional().nullable(),
-  meterEnd: z.number().optional().nullable(),
-});
-
-const taxRate = z.number().nonnegative("A tax rate cannot be negative.").max(100, "A tax rate cannot be more than 100%.");
-
-const invoiceSchema = z.object({
-  id: z.number().int().optional(),
-  // Always typed in by the user — never generated here. Blank is rejected.
-  invoiceNo: requiredText("Enter an invoice number."),
-  invoiceDate: z
-    .string()
-    .refine((value) => !Number.isNaN(new Date(value).getTime()), "Enter a valid invoice date."),
-  poNo: optionalText,
-  referenceNo: optionalText,
-  referenceDate: optionalText,
-  buyerOrderNo: optionalText,
-  paymentTerms: optionalText,
-  termsOfDelivery: optionalText,
-  billPeriodStart: optionalText,
-  billPeriodEnd: optionalText,
-
-  // "State of supply". Left blank it follows the client's state.
-  state: z.string().optional().default(""),
-  stateCode: z.string().optional().default(""),
-  transportMode: optionalText,
-  vehicleNo: optionalText,
-  placeOfSupply: optionalText,
-  irn: optionalText,
-  ewayBillNo: optionalText,
-  status: z.enum(["DRAFT", "SENT", "PAID", "QUOTATION"]),
-  reverseCharge: z.boolean(),
-
-  cgstRate: taxRate,
-  sgstRate: taxRate,
-  igstRate: taxRate,
-
-  client: z.object({
-    name: requiredText("Enter the client's name."),
-    address: requiredText("Enter the client's address."),
-    gstin: requiredText("Enter the client's GSTIN."),
-    state: requiredText("Choose the client's state."),
-    stateCode: requiredText("Choose the client's state."),
-    shipToName: optionalText,
-    shipToAddress: optionalText,
-    shipToGstin: optionalText,
-    shipToState: optionalText,
-    shipToStateCode: optionalText,
-  }),
-
-  lineItems: z.array(lineItemSchema).min(1, "Add at least one line item."),
-
-  signature: z
-    .object({
-      dataUrl: z.string().min(1),
-      type: z.enum(["DRAWN", "UPLOADED", "TYPED"]),
-    })
-    .optional()
-    .nullable(),
-});
-
-type ParsedInvoice = z.infer<typeof invoiceSchema>;
-
-function firstIssue(error: z.ZodError) {
-  return error.issues[0]?.message ?? "The invoice is not valid.";
-}
+import { findMissingDetail, firstIssue, invoiceSchema, type ParsedInvoice } from "@/lib/invoiceInput";
 
 function toDecimal(value: number) {
   return new Prisma.Decimal(roundMoney(Number(value) || 0).toFixed(2));
@@ -194,6 +114,9 @@ export async function createInvoice(input: z.input<typeof invoiceSchema>) {
   if (!parsed.success) return { success: false as const, error: firstIssue(parsed.error) };
 
   const data = parsed.data;
+  // A draft may be saved unfinished; every other status needs the full details.
+  const missing = findMissingDetail(data);
+  if (missing) return { success: false as const, error: missing };
 
   // Checked before anything is written, so a clash never leaves a half-saved record behind.
   if (await invoiceNoTaken(user.id, data.invoiceNo)) {
@@ -246,6 +169,8 @@ export async function updateInvoice(input: z.input<typeof invoiceSchema>) {
   if (!parsed.data.id) return { ok: false as const, error: "This invoice has not been saved yet." };
 
   const data = parsed.data;
+  const missing = findMissingDetail(data);
+  if (missing) return { ok: false as const, error: missing };
   const existing = await prisma.invoice.findFirst({
     where: { id: data.id, userId: user.id },
     select: { id: true, clientId: true },

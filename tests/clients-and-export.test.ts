@@ -4,7 +4,7 @@ import test from "node:test";
 import * as XLSX from "xlsx";
 
 import type { InvoiceFormData } from "../components/invoice/types";
-import { findInvoiceProblem } from "../components/invoice/validation";
+import { findInvoiceProblem, isBlankLine } from "../components/invoice/validation";
 import { clientSnapshot, sameClient } from "../lib/clientIdentity";
 import { buildInvoiceSheet, sanitizeSheetName } from "../lib/export";
 
@@ -145,4 +145,40 @@ test("the first problem is named", () => {
     findInvoiceProblem({ ...invoice, lineItems: [{ ...invoice.lineItems[0]!, amount: "" }] }) ?? "",
     /Line 1: type the amount/,
   );
+});
+
+// ---------------------------------------------------------------------------
+// Drafts can be saved unfinished
+// ---------------------------------------------------------------------------
+
+test("a draft needs only a number, a date and the client's name; the same invoice as Sent needs everything", () => {
+  const unfinished: InvoiceFormData = {
+    ...invoice,
+    status: "DRAFT",
+    client: { ...invoice.client, address: "", gstin: "", state: "", stateCode: "" },
+    lineItems: [{ ...invoice.lineItems[0]!, description: "", amount: "" }],
+  };
+  assert.equal(findInvoiceProblem(unfinished), null);
+  assert.match(findInvoiceProblem({ ...unfinished, invoiceNo: "" }) ?? "", /invoice number/);
+  assert.match(findInvoiceProblem({ ...unfinished, client: { ...unfinished.client, name: " " } }) ?? "", /client's name/);
+
+  // an amount that is typed must still be a number, even in a draft
+  assert.match(
+    findInvoiceProblem({ ...unfinished, lineItems: [{ ...unfinished.lineItems[0]!, amount: "abc" }] }) ?? "",
+    /type the amount as a number/,
+  );
+
+  // not a draft: everything is needed, and the message says how to get out
+  const asSent = findInvoiceProblem({ ...unfinished, status: "SENT" }) ?? "";
+  assert.match(asSent, /GSTIN/);
+  assert.match(asSent, /status to Draft/);
+});
+
+test("an empty row is recognised, a row with anything typed in it is not", () => {
+  const blank = { sno: 1, description: "", hsnSac: "", unit: "", qty: "", rate: "", amount: "" };
+  assert.equal(isBlankLine(blank), true);
+  assert.equal(isBlankLine({ ...blank, description: "Crane" }), false);
+  assert.equal(isBlankLine({ ...blank, amount: "0" }), false);
+  assert.equal(isBlankLine({ ...blank, qty: "2 days" }), false);
+  assert.equal(isBlankLine({ ...blank, meterStart: 10 }), false);
 });
